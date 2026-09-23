@@ -1,0 +1,25 @@
+[Unit]
+Description=tvtv-yt HTPC YouTube Frontend
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=htpc
+WorkingDirectory=/home/htpc/tvtv
+ExecStart=/home/htpc/tvtv/scripts/start.sh
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=TVTV_PORT=8000
+
+# Hardware acceleration for MPV
+Environment=LIBVA_DRIVER_NAME=iHD
+DeviceAllow=/dev/dri/card0 rwm
+DeviceAllow=/dev/dri/renderD128 rwm
+
+# Power management — let systemd handle shutdown
+StopWhenUnneeded=no
+
+[Install]
+WantedBy=graphical.target

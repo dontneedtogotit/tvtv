@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0" />
+  <title>tvtv</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #161616;
+      --surface2:  #222222;
+      --border:    #2a2a2a;
+      --accent:    #ff0033;
+      --accent2:   #ff4d6a;
+      --text:      #f0f0f0;
+      --muted:     #888888;
+      --focus-ring: 4px solid var(--accent);
+      --radius:    10px;
+      --gap:       28px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 20px;          /* 10-foot base */
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 0 var(--gap) var(--gap);
+    }
+
+    /* ── Header / Search ───────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: var(--gap);
+      padding: 28px 0 18px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: -1px;
+      flex-shrink: 0;
+    }
+
+    #search-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    #search-input {
+      width: 100%;
+      height: 64px;
+      padding: 0 80px 0 24px;
+      font-size: 1.2rem;
+      background: var(--surface);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+      transition: border-color .15s;
+    }
+    #search-input:focus { border-color: var(--accent); }
+
+    #search-btn {
+      position: absolute;
+      right: 8px; top: 50%; transform: translateY(-50%);
+      height: 48px; padding: 0 28px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #search-btn:hover, #search-btn.focused { background: var(--accent2); }
+
+    #nav-tabs {
+      display: flex;
+      gap: 14px;
+      flex-shrink: 0;
+      padding-top: 16px;
+    }
+    .nav-tab {
+      padding: 12px 28px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .nav-tab:hover, .nav-tab.focused, .nav-tab.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: var(--surface2);
+    }
+
+    /* ── Results Grid ──────────────────────────────────────────────────────── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding-top: 20px;
+    }
+
+    #results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: var(--gap);
+    }
+
+    .video-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s;
+    }
+    .video-card:hover, .video-card.focused {
+      border-color: var(--accent);
+      transform: scale(1.03);
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;  /* 16:9 */
+      background: #000;
+      overflow: hidden;
+    }
+    .thumb-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .duration-badge {
+      position: absolute;
+      bottom: 8px; right: 8px;
+      background: rgba(0,0,0,.85);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .card-info { padding: 14px 18px 18px; }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-meta {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* ── Status bar ────────────────────────────────────────────────────────── */
+    #statusbar {
+      flex-shrink: 0;
+      padding: 10px 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ── Loading / Error ───────────────────────────────────────────────────── */
+    #loading {
+      display: none;
+      padding: 60px;
+      text-align: center;
+      font-size: 1.4rem;
+      color: var(--muted);
+    }
+    #error-msg {
+      display: none;
+      padding: 20px;
+      background: #2a0000;
+      border: 1px solid #ff0000;
+      border-radius: var(--radius);
+      color: #ffaaaa;
+      margin-bottom: 20px;
+      font-size: 1rem;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div id="logo">tvtv</div>
+      <div id="search-wrap">
+        <input id="search-input" type="text" placeholder="Search YouTube…" autocomplete="off" autofocus />
+        <button id="search-btn">Search</button>
+      </div>
+    </header>
+
+    <nav id="nav-tabs">
+      <button class="nav-tab active" data-section="home">Home</button>
+      <button class="nav-tab" data-section="trending">Trending</button>
+      <button class="nav-tab" data-section="history">History</button>
+      <button class="nav-tab" data-section="search">Search Results</button>
+      <button id="sponsorblock-toggle" class="nav-tab" data-section="sponsorblock">SponsorBlock: OFF</button>
+    </nav>
+
+    <div id="error-msg"></div>
+    <div id="loading">Loading…</div>
+
+    <div id="content">
+      <div id="results-grid"></div>
+    </div>
+
+    <div id="statusbar">
+      <span id="status-text">Ready</span>
+      <span>tvtv 0.1.0 · yt-dlp</span>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const API = 'http://localhost:8000';
+    const $ = id => document.getElementById(id);
+
+    const grid        = $('results-grid');
+    const searchInput = $('search-input');
+    const searchBtn   = $('search-btn');
+    const loadingEl   = $('loading');
+    const errorEl     = $('error-msg');
+    const statusText  = $('status-text');
+    const navTabs     = document.querySelectorAll('.nav-tab');
+
+    let currentQuery = '';
+    let focusedIndex = -1;
+    let allCards     = [];
+    let sponsorblockEnabled = false;
+    const sponsorblockToggle = $('sponsorblock-toggle');
+    const HISTORY_KEY = 'tvtv_history';
+    const MAX_HISTORY = 30;
+
+    /* ── Helpers ──────────────────────────────────────────────────────────── */
+    function setStatus(msg)  { statusText.textContent = msg; }
+    function showError(msg)  { errorEl.textContent = msg; errorEl.style.display = 'block'; }
+    function hideError()     { errorEl.style.display = 'none'; }
+    function setLoading(on)  { loadingEl.style.display = on ? 'block' : 'none'; }
+
+    function cardHTML(v) {
+      return `
+        <div class="video-card" data-url="${v.url}" tabindex="0">
+          <div class="thumb-wrap">
+            <img src="${v.thumbnail}" alt="" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%23222%22/></svg>'" />
+            <span class="duration-badge">${v.duration || '--:--'}</span>
+          </div>
+          <div class="card-info">
+            <div class="card-title">${escapeHtml(v.title)}</div>
+            <div class="card-meta">${escapeHtml(v.uploader)} · ${formatViews(v.views)} views</div>
+          </div>
+        </div>`;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function formatViews(n) {
+      if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+      if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+      if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+      return String(n);
+    }
+
+    function clearFocus() {
+      allCards.forEach(c => c.classList.remove('focused'));
+    }
+
+    function setFocus(idx) {
+      clearFocus();
+      if (idx < 0 || idx >= allCards.length) return;
+      focusedIndex = idx;
+      allCards[idx].classList.add('focused');
+      allCards[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    /* ── API calls ────────────────────────────────────────────────────────── */
+    async function searchVideos(query) {
+      setLoading(true);
+      hideError();
+      setStatus(`Searching: "${query}"…`);
+      try {
+        const r = await fetch(`${API}/api/search?q=${encodeURIComponent(query)}&limit=30`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        renderResults(data.results);
+        setStatus(`${data.results.length} results for "${query}"`);
+      } catch (e) {
+        showError('Search failed: ' + e.message);
+        setStatus('Error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function loadTrending() {
+      setLoading(true);
+      hideError();
+      setStatus('Loading trending…');
+      try {
+        const r = await fetch(`${API}/api/trending?limit=30`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        renderResults(data.results);
+        setStatus('Trending');
+      } catch (e) {
+        showError('Trending failed: ' + e.message);
+        setStatus('Error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function playVideo(url) {
+      setStatus('Launching player…');
+      try {
+        const r = await fetch(`${API}/api/play`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ url, fullscreen: true, sponsorblock: sponsorblockEnabled }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setStatus('Playing…');
+      } catch (e) {
+        showError('Playback failed: ' + e.message);
+      }
+    }
+
+    /* ── Rendering ────────────────────────────────────────────────────────── */
+    function renderResults(videos) {
+      grid.innerHTML = '';
+      allCards = [];
+      focusedIndex = -1;
+      if (!videos.length) {
+        grid.innerHTML = '<p style="color:var(--muted);padding:40px;text-align:center;">No results found.</p>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      videos.forEach(v => {
+        const div = document.createElement('div');
+        div.innerHTML = cardHTML(v);
+        const card = div.firstElementChild;
+        card.addEventListener('click', () => {
+          saveHistory(v);
+          playVideo(v.url);
+        });
+        card.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            saveHistory(v);
+            playVideo(v.url);
+          }
+        });
+        grid.appendChild(card);
+        allCards.push(card);
+      });
+    }
+
+    /* ── Watch history ────────────────────────────────────────────────────── */
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveHistory(video) {
+      try {
+        let history = loadHistory();
+        // Remove duplicates
+        history = history.filter(item => item.id !== video.id);
+        // Add to front
+        history.unshift({
+          id: video.id,
+          title: video.title,
+          uploader: video.uploader,
+          duration: video.duration,
+          views: video.views,
+          thumbnail: video.thumbnail,
+          url: video.url,
+          watchedAt: Date.now(),
+        });
+        // Limit size
+        history = history.slice(0, MAX_HISTORY);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      } catch (e) {
+        // localStorage may be unavailable
+      }
+    }
+
+    function renderHistory() {
+      const history = loadHistory();
+      if (!history.length) {
+        grid.innerHTML = '<p style="color:var(--muted);padding:40px;text-align:center;font-size:1.2rem;">No watch history yet. Search or play a video to get started.</p>';
+        return;
+      }
+      renderResults(history);
+      setStatus(`History — ${history.length} videos`);
+    }
+
+    /* ── Keyboard navigation (10-foot remote friendly) ────────────────────── */
+    document.addEventListener('keydown', e => {
+      if (e.target === searchInput) {
+        if (e.key === 'Escape') { searchInput.blur(); return; }
+        if (e.key === 'Enter') { searchVideos(searchInput.value); return; }
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowRight':  setFocus(Math.min(focusedIndex + 1, allCards.length - 1)); break;
+        case 'ArrowLeft':   setFocus(Math.max(focusedIndex - 1, 0)); break;
+        case 'ArrowDown':   setFocus(Math.min(focusedIndex + 5, allCards.length - 1)); break;
+        case 'ArrowUp':
+          if (focusedIndex >= 5) setFocus(focusedIndex - 5);
+          else searchInput.focus();
+          break;
+        case 'Enter':
+          if (focusedIndex >= 0 && allCards[focusedIndex]) {
+            const url = allCards[focusedIndex].dataset.url;
+            if (url) playVideo(url);
+          }
+          break;
+        case 'Escape':
+          searchInput.focus();
+          break;
+        case 's':
+        case 'S':
+          searchInput.focus();
+          searchInput.select();
+          break;
+      }
+    });
+
+    /* ── SponsorBlock toggle ───────────────────────────────────────────────── */
+    function updateSponsorblockUI() {
+      sponsorblockToggle.textContent = sponsorblockEnabled ? 'SponsorBlock: ON' : 'SponsorBlock: OFF';
+      sponsorblockToggle.classList.toggle('active', sponsorblockEnabled);
+      sponsorblockToggle.classList.toggle('focused', sponsorblockEnabled);
+    }
+    sponsorblockToggle.addEventListener('click', () => {
+      sponsorblockEnabled = !sponsorblockEnabled;
+      updateSponsorblockUI();
+      setStatus(sponsorblockEnabled ? 'SponsorBlock enabled — segments will be skipped' : 'SponsorBlock disabled');
+    });
+
+    /* ── Search button ────────────────────────────────────────────────────── */
+    searchBtn.addEventListener('click', () => searchVideos(searchInput.value));
+
+    /* ── Nav tabs ─────────────────────────────────────────────────────────── */
+    navTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        navTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const section = tab.dataset.section;
+        if (section === 'trending') loadTrending();
+        else if (section === 'history') renderHistory();
+        else if (section === 'search' && currentQuery) searchVideos(currentQuery);
+        else if (section === 'home') {
+          currentQuery = '';
+          searchInput.value = '';
+          grid.innerHTML = '<p style="color:var(--muted);padding:40px;text-align:center;font-size:1.2rem;">Type a search above and press Enter, or open Trending.</p>';
+        }
+      });
+    });
+
+    /* ── Init ─────────────────────────────────────────────────────────────── */
+    setStatus('Ready — type to search or press S');
+    searchInput.focus();
+
+    // Load trending on first open
+    loadTrending();
+  })();
+  </script>
+</body>
+</html>
