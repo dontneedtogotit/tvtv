@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>tvtv Remote</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --surface2: #222;
+      --border: #2a2a2a;
+      --accent: #ff0033;
+      --accent2: #ff4d6a;
+      --text: #f0f0f0;
+      --muted: #888;
+      --radius: 10px;
+      --gap: 12px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: var(--gap);
+      gap: var(--gap);
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #logo {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--accent);
+    }
+    #status {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Search */
+    #search-wrap {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    #search-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      font-size: 1rem;
+      background: var(--surface);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+    }
+    #search-input:focus { border-color: var(--accent); }
+    #search-btn {
+      height: 44px;
+      padding: 0 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Now playing */
+    #now-playing {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      flex-shrink: 0;
+    }
+    #np-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #np-channel {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* Controls */
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .ctrl-btn {
+      height: 56px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ctrl-btn:active, .ctrl-btn.focused {
+      background: var(--surface2);
+      border-color: var(--accent);
+      transform: scale(0.96);
+    }
+    .ctrl-btn.wide {
+      grid-column: span 3;
+    }
+    .ctrl-btn.accent {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Quick actions */
+    #quick {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .quick-btn {
+      height: 48px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .1s;
+    }
+    .quick-btn:active {
+      border-color: var(--accent);
+      background: var(--surface2);
+    }
+    .quick-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Search results */
+    #results {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .result-item {
+      display: flex;
+      gap: 10px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px;
+      cursor: pointer;
+      transition: border-color .1s;
+    }
+    .result-item:active { border-color: var(--accent); }
+    .result-thumb {
+      width: 120px;
+      height: 68px;
+      background: #000;
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .result-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .result-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+    }
+    .result-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .result-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* Loading */
+    #loading {
+      display: none;
+      padding: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div id="logo">tvtv remote</div>
+      <div id="status">Ready</div>
+    </header>
+
+    <div id="search-wrap">
+      <input id="search-input" type="text" placeholder="Search YouTube…" autocomplete="off" />
+      <button id="search-btn">Search</button>
+    </div>
+
+    <div id="now-playing" style="display:none;">
+      <div id="np-title">Not playing</div>
+      <div id="np-channel"></div>
+      <div id="controls">
+        <button class="ctrl-btn" data-action="seek-10">-10s</button>
+        <button class="ctrl-btn" data-action="pause">Pause</button>
+        <button class="ctrl-btn" data-action="seek+10">+10s</button>
+        <button class="ctrl-btn" data-action="seek-30">-30s</button>
+        <button class="ctrl-btn" data-action="fullscreen">Fullscreen</button>
+        <button class="ctrl-btn" data-action="seek+30">+30s</button>
+        <button class="ctrl-btn wide accent" data-action="stop">Stop</button>
+      </div>
+    </div>
+
+    <div id="quick">
+      <button class="quick-btn" data-quick="trending">Trending</button>
+      <button class="quick-btn" data-quick="search">Search Results</button>
+      <button class="quick-btn" data-quick="home">Home</button>
+      <button class="quick-btn" data-quick="history">History</button>
+    </div>
+
+    <div id="loading">Loading…</div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const API = 'http://localhost:8000';
+    const $ = id => document.getElementById(id);
+
+    const searchInput = $('search-input');
+    const searchBtn   = $('search-btn');
+    const results     = $('results');
+    const loadingEl   = $('loading');
+    const statusEl    = $('status');
+    const nowPlaying  = $('now-playing');
+    const npTitle     = $('np-title');
+    const npChannel   = $('np-channel');
+
+    let currentVideo = null;
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setLoading(on) { loadingEl.style.display = on ? 'block' : 'none'; }
+
+    function resultHTML(v) {
+      return `
+        <div class="result-item" data-url="${v.url}" data-title="${escapeHtml(v.title)}" data-channel="${escapeHtml(v.uploader)}">
+          <div class="result-thumb">
+            <img src="${v.thumbnail}" alt="" loading="lazy" onerror="this.style.display='none'" />
+          </div>
+          <div class="result-info">
+            <div class="result-title">${escapeHtml(v.title)}</div>
+            <div class="result-meta">${escapeHtml(v.uploader)} · ${v.duration || ''}</div>
+          </div>
+        </div>`;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function showNowPlaying(v) {
+      currentVideo = v;
+      npTitle.textContent = v.title;
+      npChannel.textContent = v.uploader;
+      nowPlaying.style.display = 'block';
+    }
+
+    async function search(query) {
+      setLoading(true);
+      setStatus('Searching…');
+      try {
+        const r = await fetch(`${API}/api/search?q=${encodeURIComponent(query)}&limit=20`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        renderResults(data.results);
+        setStatus(`${data.results.length} results`);
+      } catch (e) {
+        setStatus('Error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function loadTrending() {
+      setLoading(true);
+      setStatus('Loading trending…');
+      try {
+        const r = await fetch(`${API}/api/trending?limit=20`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        renderResults(data.results);
+        setStatus('Trending');
+      } catch (e) {
+        setStatus('Error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function playVideo(url, title, channel) {
+      setStatus('Playing…');
+      try {
+        const r = await fetch(`${API}/api/play`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ url, fullscreen: true }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        showNowPlaying({ title: title || 'Unknown', uploader: channel || 'Unknown', url });
+        setStatus('Playing');
+      } catch (e) {
+        setStatus('Playback failed');
+      }
+    }
+
+    function renderResults(videos) {
+      results.innerHTML = '';
+      if (!videos.length) {
+        results.innerHTML = '<p style="color:var(--muted);padding:20px;text-align:center;">No results.</p>';
+        return;
+      }
+      videos.forEach(v => {
+        const div = document.createElement('div');
+        div.innerHTML = resultHTML(v);
+        const el = div.firstElementChild;
+        el.addEventListener('click', () => playVideo(v.url, v.title, v.uploader));
+        results.appendChild(el);
+      });
+    }
+
+    async function mpvCommand(action) {
+      // MPV IPC via Unix socket would be ideal, but for now we use
+      // a simple approach: the remote sends commands to the backend,
+      // which uses dbus/playerctl or similar to control MPV.
+      // For this implementation, we'll use playerctl if available,
+      // or fall back to a no-op with status feedback.
+      setStatus(action);
+      try {
+        // Try playerctl first (works with MPV if media-control is enabled)
+        await fetch(`${API}/api/control`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action }),
+        });
+      } catch (e) {
+        setStatus('Control failed');
+      }
+    }
+
+    /* ── Event listeners ──────────────────────────────────────────────────── */
+    searchBtn.addEventListener('click', () => search(searchInput.value));
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') search(searchInput.value);
+    });
+
+    results.addEventListener('click', e => {
+      const item = e.target.closest('.result-item');
+      if (!item) return;
+      const url = item.dataset.url;
+      const title = item.dataset.title;
+      const channel = item.dataset.channel;
+      if (url) playVideo(url, title, channel);
+    });
+
+    document.querySelectorAll('.ctrl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        if (action === 'stop') {
+          nowPlaying.style.display = 'none';
+          currentVideo = null;
+          setStatus('Stopped');
+        } else {
+          mpvCommand(action);
+        }
+      });
+    });
+
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const quick = btn.dataset.quick;
+        if (quick === 'trending') loadTrending();
+        else if (quick === 'search') {
+          searchInput.focus();
+          searchInput.select();
+        }
+        else if (quick === 'home') {
+          results.innerHTML = '<p style="color:var(--muted);padding:20px;text-align:center;">Use search or quick actions above.</p>';
+          setStatus('Home');
+        }
+        else if (quick === 'history') {
+          setStatus('Open History on TV screen');
+        }
+      });
+    });
+
+    /* ── Init ─────────────────────────────────────────────────────────────── */
+    setStatus('Ready');
+    searchInput.focus();
+  })();
+  </script>
+</body>
+</html>

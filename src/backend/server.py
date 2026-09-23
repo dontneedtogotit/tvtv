@@ -41,6 +41,7 @@ YT_DLP = shutil.which("yt-dlp") or "yt-dlp"
 MPV = shutil.which("mpv") or "mpv"
 CACHE_DIR = Path.home() / ".cache" / "tvtv-yt"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+IPC_SOCKET = "/tmp/mpv-ipc.sock"
 
 # Prefer 1080p+ with avc1/h264 for broad hardware decode compatibility on HD 620
 YT_DLP_OPTS = [
@@ -174,6 +175,7 @@ def play(req: PlayRequest) -> JSONResponse:
         "--ytdl-format=bestvideo[height<=2160][vcodec^=avc1]+bestaudio[acodec^=mp4a]/"
                     "bestvideo[height<=2160][vcodec^=vp9]+bestaudio[acodec^=opus]/"
                     "best[height<=2160]",
+        "--input-ipc-server=" + IPC_SOCKET,
     ]
 
     # SponsorBlock: fetch skip segments and inject as MPV script options
@@ -209,6 +211,46 @@ def play(req: PlayRequest) -> JSONResponse:
         raise HTTPException(500, "mpv not found on PATH")
 
     return JSONResponse({"status": "playing", "url": url, "player": "mpv", "sponsorblock": req.sponsorblock})
+
+@app.post("/api/control")
+def control(req: PlayRequest) -> JSONResponse:
+    """Send a control command to MPV via IPC socket."""
+    action = req.url.strip()
+    if not action:
+        raise HTTPException(400, "No action provided")
+
+    # Map friendly actions to MPV commands
+    mpv_commands = {
+        "pause": "cycle pause",
+        "stop": "quit",
+        "fullscreen": "cycle fullscreen",
+        "seek+10": "seek 10",
+        "seek-10": "seek -10",
+        "seek+30": "seek 30",
+        "seek-30": "seek -30",
+    }
+
+    cmd_str = mpv_commands.get(action)
+    if not cmd_str:
+        raise HTTPException(400, f"Unknown action: {action}")
+
+    # Send to MPV via IPC socket
+    try:
+        ipc_script = Path(__file__).parent.parent.parent / "scripts" / "mpv-ipc.py"
+        sock = subprocess.run(
+            ["python3", str(ipc_script), IPC_SOCKET, cmd_str],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if sock.returncode != 0:
+            raise HTTPException(500, f"IPC failed: {sock.stderr.strip()}")
+        return JSONResponse({"status": "ok", "action": action, "command": cmd_str})
+    except FileNotFoundError:
+        raise HTTPException(500, "python3 not found")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to send command: {e}")
 
 
 def _extract_video_id(url: str) -> str | None:
@@ -268,7 +310,21 @@ def trending(limit: int = 20) -> JSONResponse:
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+REMOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "frontend", "remote.html")
+INDEX_PATH = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
 
+@app.get("/remote")
+def remote() -> HTMLResponse:
+    if os.path.isfile(REMOTE_PATH):
+        return HTMLResponse(open(REMOTE_PATH).read())
+    raise HTTPException(404, "Remote UI not found")
+
+@app.get("/")
+def index() -> HTMLResponse:
+    if os.path.isfile(INDEX_PATH):
+        return HTMLResponse(open(INDEX_PATH).read())
+    raise HTTPException(404, "Frontend not found")
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.isdir(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend")
