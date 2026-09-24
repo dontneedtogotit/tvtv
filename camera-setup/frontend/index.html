@@ -503,6 +503,13 @@
         <div class="empty-state-icon">📷</div>
         <div class="empty-state-title">No cameras detected yet</div>
         <p>Configure your network range and click "Scan Network" to discover cameras.</p>
+        <div style="margin-top:20px; text-align:left; display:inline-block; background:var(--surface2); padding:16px; border-radius:10px; font-size:0.9rem; line-height:1.6;">
+          <div style="font-weight:700; margin-bottom:8px; color:var(--accent);">Quick Tips</div>
+          <div>• Use <b>192.168.1.0/24</b> for most home networks</div>
+          <div>• Make sure your camera is powered on and connected</div>
+          <div>• ONVIF/RTSP must be enabled on the camera</div>
+          <div>• Press <b>Enter</b> in the network field to scan</div>
+        </div>
       </div>
       <div class="camera-grid" id="camera-grid" style="display:none;"></div>
     </div>
@@ -685,24 +692,31 @@
 
         setProgress(100, 'Complete', `Found ${data.cameras_found} cameras`);
         
+        currentCameras = data.cameras || [];
+        persistCameras(currentCameras);
+        refreshHistory();
+        
         // Update stats
         $('stat-hosts').textContent = data.total_hosts;
         $('stat-cameras').textContent = data.cameras_found;
         
-        const brands = new Set(data.cameras.map(c => c.brand));
+        const brands = new Set(currentCameras.map(c => c.brand));
         $('stat-brands').textContent = brands.size;
         
-        const onvifCount = data.cameras.filter(c => c.onvif).length;
+        const onvifCount = currentCameras.filter(c => c.onvif).length;
         $('stat-onvif').textContent = onvifCount;
         
         statsRow.style.display = 'grid';
         
         // Render cameras
-        if (data.cameras.length > 0) {
+        if (currentCameras.length > 0) {
           emptyState.style.display = 'none';
           cameraGrid.style.display = 'grid';
-          cameraGrid.innerHTML = data.cameras.map(renderCameraCard).join('');
-          showToast(`Found ${data.cameras_found} cameras!`, 'success');
+          cameraGrid.innerHTML = '';
+          currentCameras.forEach(camera => {
+            cameraGrid.appendChild(renderCameraCard(camera));
+          });
+          showToast(`Found ${currentCameras.length} cameras!`, 'success');
         } else {
           emptyState.style.display = 'block';
           cameraGrid.style.display = 'none';
@@ -732,6 +746,28 @@
         
         if (data.success) {
           showToast(`Camera detected: ${data.brand}`, 'success');
+          // Update currentCameras with new data
+          const existingIndex = currentCameras.findIndex(c => c.ip === ip);
+          const newCam = {
+            ip: data.ip,
+            mac: data.mac || '',
+            brand: data.brand || 'Unknown',
+            port: 80,
+            rtsp_url: data.rtsp_urls && data.rtsp_urls.length ? data.rtsp_urls[0] : '',
+            onvif: data.onvif || false,
+            confidence: existingIndex >= 0 ? 'high' : 'medium',
+            methods: existingIndex >= 0 ? (currentCameras[existingIndex].methods || []) : ['probe'],
+          };
+          
+          if (existingIndex >= 0) {
+            currentCameras[existingIndex] = newCam;
+          } else {
+            currentCameras.push(newCam);
+          }
+          
+          persistCameras(currentCameras);
+          refreshHistory();
+          
           // Refresh scan
           setTimeout(() => startScan(), 1000);
         } else {
@@ -756,7 +792,148 @@
 
     // Init
     scanBtn.addEventListener('click', startScan);
+    
+    // Enter key to scan
+    ['network', 'timeout'].forEach(id => {
+      const el = $(id);
+      if (el) {
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter') startScan();
+        });
+      }
+    });
+    
+    // Export bar buttons
+    const exportBar = $('export-bar');
+    const exportJsonBtn = $('export-json-btn');
+    const exportCsvBtn = $('export-csv-btn');
+    const copyAllRtspBtn = $('copy-all-rtsp-btn');
+    const clearHistoryBtn = $('clear-history-btn');
+    
+    if (exportJsonBtn) {
+      exportJsonBtn.addEventListener('click', () => {
+        if (!currentCameras.length) return;
+        const blob = new Blob([JSON.stringify(currentCameras, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, 'cameras.json');
+        showToast('Exported JSON', 'success');
+      });
+    }
+    
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', () => {
+        if (!currentCameras.length) return;
+        const rows = [['IP', 'MAC', 'Brand', 'Port', 'ONVIF', 'RTSP URL', 'Confidence', 'Methods']];
+        currentCameras.forEach(c => {
+          rows.push([c.ip, c.mac, c.brand, c.port, c.onvif ? 'Yes' : 'No', c.rtsp_url || '', c.confidence, c.methods.join('; ')]);
+        });
+        const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        downloadBlob(blob, 'cameras.csv');
+        showToast('Exported CSV', 'success');
+      });
+    }
+    
+    if (copyAllRtspBtn) {
+      copyAllRtspBtn.addEventListener('click', () => {
+        if (!currentCameras.length) return;
+        const urls = currentCameras.filter(c => c.rtsp_url).map(c => c.rtsp_url);
+        if (!urls.length) {
+          showToast('No RTSP URLs to copy', 'error');
+          return;
+        }
+        navigator.clipboard.writeText(urls.join('\n')).then(() => {
+          showToast(`Copied ${urls.length} RTSP URLs`, 'success');
+        }).catch(() => showToast('Failed to copy URLs', 'error'));
+      });
+    }
+    
+    if (clearHistoryBtn) {
+      clearHistoryBtn.addEventListener('click', () => {
+        localStorage.removeItem(HISTORY_KEY);
+        showToast('Scan history cleared', 'info');
+        refreshHistory();
+      });
+    }
+    
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    // Details modal
+    function showDetails(ip) {
+      const cam = currentCameras.find(c => c.ip === ip);
+      if (!cam) return;
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);';
+      modal.innerHTML = `
+        <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:28px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <div>
+              <div style="font-size:1.2rem;font-weight:900;">${cam.brand}</div>
+              <div style="font-family:'SF Mono',monospace;color:var(--muted);font-size:0.9rem;">${cam.ip}</div>
+            </div>
+            <button id="close-modal" style="background:var(--surface2);border:2px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:1.1rem;">✕</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">MAC Address</span><span style="font-weight:600;">${cam.mac || '—'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Port</span><span style="font-weight:600;">${cam.port}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">ONVIF</span><span style="font-weight:600;">${cam.onvif ? '✅ Yes' : '❌ No'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Confidence</span><span style="font-weight:600;">${cam.confidence}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Methods</span><span style="font-weight:600;">${cam.methods.join(', ') || '—'}</span></div>
+            ${cam.rtsp_url ? `
+              <div style="margin-top:8px;">
+                <div style="color:var(--muted);font-size:0.85rem;margin-bottom:6px;">RTSP URL</div>
+                <div style="background:var(--bg);padding:10px;border-radius:8px;font-family:'SF Mono',monospace;font-size:0.85rem;word-break:break-all;">${cam.rtsp_url}</div>
+                <button class="btn btn-sm" style="margin-top:8px;width:100%;" onclick="navigator.clipboard.writeText('${cam.rtsp_url}').then(()=>{showToast('RTSP URL copied','success')})">📋 Copy RTSP URL</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      const close = () => modal.remove();
+      modal.addEventListener('click', e => {
+        if (e.target === modal || e.target.id === 'close-modal') close();
+      });
+      document.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+      });
+    }
+    
+    // Persist results
+    const HISTORY_KEY = 'tvtv_camera_history';
+    let currentCameras = [];
+    
+    function persistCameras(cameras) {
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(cameras)); } catch (e) {}
+    }
+    
+    function loadPersistedCameras() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    
+    function refreshHistory() {
+      const history = loadPersistedCameras();
+      if (history.length > 0) {
+        exportBar.style.display = 'flex';
+      } else {
+        exportBar.style.display = 'none';
+      }
+    }
+    
     showToast('Ready to scan network', 'info');
+    refreshHistory();
   })();
   </script>
 </body>
