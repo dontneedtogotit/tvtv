@@ -584,49 +584,76 @@
         return `<span class="badge badge-info">${labels[m] || m}</span>`;
       }).join(' ');
 
-      return `
-        <div class="camera-card ${brandClass}">
-          <div class="camera-header">
-            <div>
-              <div class="camera-brand">${camera.brand}</div>
-              <div class="camera-ip">${camera.ip}</div>
-            </div>
-            ${confidenceBadge}
+      const card = document.createElement('div');
+      card.className = `camera-card ${brandClass}`;
+      card.dataset.ip = camera.ip;
+      card.dataset.rtsp = camera.rtsp_url || '';
+      
+      card.innerHTML = `
+        <div class="camera-header">
+          <div>
+            <div class="camera-brand">${camera.brand}</div>
+            <div class="camera-ip">${camera.ip}</div>
           </div>
-          <div class="camera-body">
-            <div class="camera-info-row">
-              <span class="camera-info-label">MAC Address</span>
-              <span class="camera-info-value">${camera.mac || '—'}</span>
-            </div>
-            <div class="camera-info-row">
-              <span class="camera-info-label">Port</span>
-              <span class="camera-info-value">${camera.port}</span>
-            </div>
-            <div class="camera-info-row">
-              <span class="camera-info-label">ONVIF</span>
-              <span class="camera-info-value">${camera.onvif ? '✅ Yes' : '❌ No'}</span>
-            </div>
-            <div class="camera-info-row">
-              <span class="camera-info-label">Detection</span>
-              <span class="camera-info-value">${methodBadges || '—'}</span>
-            </div>
+          ${confidenceBadge}
+        </div>
+        <div class="camera-body">
+          <div class="camera-info-row">
+            <span class="camera-info-label">MAC Address</span>
+            <span class="camera-info-value">${camera.mac || '—'}</span>
           </div>
-          <div class="camera-footer">
-            <button class="btn btn-sm" onclick="probeCamera('${camera.ip}')">
-              🔄 Probe
-            </button>
-            ${camera.rtsp_url ? `
-              <button class="btn btn-sm btn-secondary" onclick="copyUrl('${camera.rtsp_url}')">
-                📋 Copy RTSP
-              </button>
-            ` : ''}
-            <button class="btn btn-sm btn-secondary" onclick="showDetails('${camera.ip}')">
-              ℹ️ Details
-            </button>
+          <div class="camera-info-row">
+            <span class="camera-info-label">Port</span>
+            <span class="camera-info-value">${camera.port}</span>
+          </div>
+          <div class="camera-info-row">
+            <span class="camera-info-label">ONVIF</span>
+            <span class="camera-info-value">${camera.onvif ? '✅ Yes' : '❌ No'}</span>
+          </div>
+          <div class="camera-info-row">
+            <span class="camera-info-label">Detection</span>
+            <span class="camera-info-value">${methodBadges || '—'}</span>
           </div>
         </div>
+        <div class="camera-footer">
+          <button class="btn btn-sm probe-btn" data-action="probe">
+            🔄 Probe
+          </button>
+          ${camera.rtsp_url ? `
+            <button class="btn btn-sm btn-secondary copy-btn" data-action="copy" data-url="${camera.rtsp_url}">
+              📋 Copy RTSP
+            </button>
+          ` : ''}
+          <button class="btn btn-sm btn-secondary details-btn" data-action="details">
+            ℹ️ Details
+          </button>
+        </div>
       `;
+      
+      return card;
     }
+
+    function handleCardAction(e) {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      
+      const card = btn.closest('.camera-card');
+      if (!card) return;
+      
+      const ip = card.dataset.ip;
+      const action = btn.dataset.action;
+      const url = btn.dataset.url || '';
+      
+      if (action === 'probe') {
+        probeCamera(ip);
+      } else if (action === 'copy') {
+        copyUrl(url || card.dataset.rtsp);
+      } else if (action === 'details') {
+        showDetails(ip);
+      }
+    }
+
+    cameraGrid.addEventListener('click', handleCardAction);
 
     async function startScan() {
       if (isScanning) return;
