@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>tvtv Camera Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a25;
+      --surface3: #22222e;
+      --border: #2a2a3a;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f0f0f5;
+      --muted: #8888a0;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --gap: 20px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    #logo {
+      font-size: 2.4rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    #subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      transition: all .2s;
+    }
+    .card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon {
+      font-size: 1.3rem;
+    }
+
+    /* Network config */
+    .config-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input, select {
+      height: 48px;
+      padding: 0 16px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 0.95rem;
+      transition: all .15s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+    }
+    .btn {
+      height: 48px;
+      padding: 0 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.3);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--surface3);
+    }
+    .btn-sm {
+      height: 36px;
+      padding: 0 16px;
+      font-size: 0.85rem;
+    }
+
+    /* Progress */
+    .progress-section {
+      display: none;
+      margin-bottom: 20px;
+    }
+    .progress-section.visible { display: block; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+    .progress-bar {
+      height: 10px;
+      background: var(--surface2);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 5px;
+      transition: width .3s;
+      width: 0%;
+    }
+    .progress-status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Stats */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      text-align: center;
+      transition: all .2s;
+    }
+    .stat-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* Camera grid */
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+    }
+    .camera-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: all .25s;
+    }
+    .camera-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+    .camera-header {
+      padding: 20px;
+      background: linear-gradient(135deg, var(--surface2), var(--surface3));
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+    }
+    .camera-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .camera-ip {
+      font-family: "SF Mono", Monaco, monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .camera-body {
+      padding: 20px;
+    }
+    .camera-info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .camera-info-row:last-child {
+      border-bottom: none;
+    }
+    .camera-info-label {
+      color: var(--muted);
+    }
+    .camera-info-value {
+      font-weight: 600;
+      text-align: right;
+    }
+    .camera-footer {
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .badge-info {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    .empty-state-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 20px;
+      min-width: 300px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      animation: slideIn .3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.info { border-left: 4px solid var(--accent); }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+
+    /* Spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* Brand colors */
+    .brand-hikvision { border-left: 4px solid #00d4ff; }
+    .brand-dahua { border-left: 4px solid #7c3aed; }
+    .brand-tp-link { border-left: 4px solid #10b981; }
+    .brand-reolink { border-left: 4px solid #f59e0b; }
+    .brand-axis { border-left: 4px solid #ef4444; }
+    .brand-foscam { border-left: 4px solid #3b82f6; }
+    .brand-ezviz { border-left: 4px solid #8b5cf6; }
+    .brand-samsung { border-left: 4px solid #1428a0; }
+    .brand-sony { border-left: 4px solid #000000; }
+    .brand-generic { border-left: 4px solid #6b7280; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #app { padding: 20px 16px; }
+      .config-row { grid-template-columns: 1fr; }
+      .camera-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div id="logo">📷 tvtv Camera Setup</div>
+      <div id="subtitle">Intelligent camera detection and configuration</div>
+    </header>
+
+    <!-- Network Configuration -->
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">🌐</span>
+        Network Configuration
+      </div>
+      <div class="config-row">
+        <div class="input-group">
+          <label for="network">Network Range</label>
+          <input type="text" id="network" value="192.168.1.0/24" placeholder="192.168.1.0/24" />
+        </div>
+        <div class="input-group">
+          <label for="timeout">Scan Timeout (s)</label>
+          <input type="number" id="timeout" value="3" min="1" max="10" />
+        </div>
+        <button class="btn" id="scan-btn" onclick="startScan()">
+          <span>🔍</span>
+          <span>Scan Network</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section" id="progress-section">
+      <div class="progress-header">
+        <span id="progress-label">Scanning network…</span>
+        <span id="progress-percent">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-status" id="progress-status">Initializing scan…</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="stats-row" style="display:none;">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-hosts">0</div>
+        <div class="stat-label">Hosts Scanned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-cameras">0</div>
+        <div class="stat-label">Cameras Found</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-brands">0</div>
+        <div class="stat-label">Brands Detected</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-onvif">0</div>
+        <div class="stat-label">ONVIF Devices</div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-section">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-state-icon">📷</div>
+        <div class="empty-state-title">No cameras detected yet</div>
+        <p>Configure your network range and click "Scan Network" to discover cameras.</p>
+      </div>
+      <div class="camera-grid" id="camera-grid" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+
+    const scanBtn = $('scan-btn');
+    const progressSection = $('progress-section');
+    const progressFill = $('progress-fill');
+    const progressPercent = $('progress-percent');
+    const progressLabel = $('progress-label');
+    const progressStatus = $('progress-status');
+    const statsRow = $('stats-row');
+    const cameraGrid = $('camera-grid');
+    const emptyState = $('empty-state');
+    const toastContainer = $('toast-container');
+
+    let isScanning = false;
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.style.animation = 'slideOut .3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function setProgress(percent, label, status) {
+      progressFill.style.width = percent + '%';
+      progressPercent.textContent = percent + '%';
+      if (label) progressLabel.textContent = label;
+      if (status) progressStatus.textContent = status;
+    }
+
+    function getBrandClass(brand) {
+      const lower = brand.toLowerCase();
+      if (lower.includes('hikvision')) return 'brand-hikvision';
+      if (lower.includes('dahua')) return 'brand-dahua';
+      if (lower.includes('tp-link') || lower.includes('tapo')) return 'brand-tp-link';
+      if (lower.includes('reolink')) return 'brand-reolink';
+      if (lower.includes('axis')) return 'brand-axis';
+      if (lower.includes('foscam')) return 'brand-foscam';
+      if (lower.includes('ezviz')) return 'brand-ezviz';
+      if (lower.includes('samsung')) return 'brand-samsung';
+      if (lower.includes('sony')) return 'brand-sony';
+      return 'brand-generic';
+    }
+
+    function getConfidenceBadge(confidence) {
+      const map = {
+        high: '<span class="badge badge-success">● High</span>',
+        medium: '<span class="badge badge-warning">● Medium</span>',
+        low: '<span class="badge badge-info">● Low</span>',
+      };
+      return map[confidence] || map.low;
+    }
+
+    function renderCameraCard(camera) {
+      const brandClass = getBrandClass(camera.brand);
+      const confidenceBadge = getConfidenceBadge(camera.confidence);
+      
+      const methodBadges = camera.methods.map(m => {
+        const labels = {
+          'mac-oui': 'MAC OUI',
+          'http-banner': 'HTTP Banner',
+          'onvif': 'ONVIF',
+        };
+        return `<span class="badge badge-info">${labels[m] || m}</span>`;
+      }).join(' ');
+
+      return `
+        <div class="camera-card ${brandClass}">
+          <div class="camera-header">
+            <div>
+              <div class="camera-brand">${camera.brand}</div>
+              <div class="camera-ip">${camera.ip}</div>
+            </div>
+            ${confidenceBadge}
+          </div>
+          <div class="camera-body">
+            <div class="camera-info-row">
+              <span class="camera-info-label">MAC Address</span>
+              <span class="camera-info-value">${camera.mac || '—'}</span>
+            </div>
+            <div class="camera-info-row">
+              <span class="camera-info-label">Port</span>
+              <span class="camera-info-value">${camera.port}</span>
+            </div>
+            <div class="camera-info-row">
+              <span class="camera-info-label">ONVIF</span>
+              <span class="camera-info-value">${camera.onvif ? '✅ Yes' : '❌ No'}</span>
+            </div>
+            <div class="camera-info-row">
+              <span class="camera-info-label">Detection</span>
+              <span class="camera-info-value">${methodBadges || '—'}</span>
+            </div>
+          </div>
+          <div class="camera-footer">
+            <button class="btn btn-sm" onclick="probeCamera('${camera.ip}')">
+              🔄 Probe
+            </button>
+            ${camera.rtsp_url ? `
+              <button class="btn btn-sm btn-secondary" onclick="copyUrl('${camera.rtsp_url}')">
+                📋 Copy RTSP
+              </button>
+            ` : ''}
+            <button class="btn btn-sm btn-secondary" onclick="showDetails('${camera.ip}')">
+              ℹ️ Details
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function startScan() {
+      if (isScanning) return;
+      
+      const network = $('network').value.trim();
+      const timeout = parseInt($('timeout').value) || 3;
+
+      if (!network) {
+        showToast('Please enter a network range', 'error');
+        return;
+      }
+
+      isScanning = true;
+      scanBtn.disabled = true;
+      scanBtn.innerHTML = '<span class="spinner"></span><span>Scanning…</span>';
+      
+      progressSection.classList.add('visible');
+      setProgress(0, 'Scanning network…', 'Initializing…');
+      
+      try {
+        const r = await fetch(`${API}/api/scan`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ network, ports: [80, 443, 554, 555, 8080, 8443, 8554], timeout }),
+        });
+
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+
+        setProgress(100, 'Complete', `Found ${data.cameras_found} cameras`);
+        
+        // Update stats
+        $('stat-hosts').textContent = data.total_hosts;
+        $('stat-cameras').textContent = data.cameras_found;
+        
+        const brands = new Set(data.cameras.map(c => c.brand));
+        $('stat-brands').textContent = brands.size;
+        
+        const onvifCount = data.cameras.filter(c => c.onvif).length;
+        $('stat-onvif').textContent = onvifCount;
+        
+        statsRow.style.display = 'grid';
+        
+        // Render cameras
+        if (data.cameras.length > 0) {
+          emptyState.style.display = 'none';
+          cameraGrid.style.display = 'grid';
+          cameraGrid.innerHTML = data.cameras.map(renderCameraCard).join('');
+          showToast(`Found ${data.cameras_found} cameras!`, 'success');
+        } else {
+          emptyState.style.display = 'block';
+          cameraGrid.style.display = 'none';
+          showToast('No cameras found on this network', 'info');
+        }
+      } catch (e) {
+        setProgress(0, 'Error', e.message);
+        showToast('Scan failed: ' + e.message, 'error');
+      } finally {
+        isScanning = false;
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<span>🔍</span><span>Scan Network</span>';
+      }
+    }
+
+    async function probeCamera(ip) {
+      showToast(`Probing ${ip}…`, 'info');
+      try {
+        const r = await fetch(`${API}/api/probe`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ip }),
+        });
+        
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        
+        if (data.success) {
+          showToast(`Camera detected: ${data.brand}`, 'success');
+          // Refresh scan
+          setTimeout(() => startScan(), 1000);
+        } else {
+          showToast(data.message || 'Probe failed', 'error');
+        }
+      } catch (e) {
+        showToast('Probe failed: ' + e.message, 'error');
+      }
+    }
+
+    function copyUrl(url) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('RTSP URL copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy URL', 'error');
+      });
+    }
+
+    function showDetails(ip) {
+      showToast(`Camera details for ${ip}`, 'info');
+    }
+
+    // Init
+    showToast('Ready to scan network', 'info');
+  })();
+  </script>
+</body>
+</html>
