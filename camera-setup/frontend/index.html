@@ -178,6 +178,22 @@
       padding: 0 16px;
       font-size: 0.85rem;
     }
+    .nav-tab {
+      height: 40px;
+      padding: 0 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .nav-tab:hover {
+      border-color: var(--accent);
+      background: var(--surface3);
+    }
 
     /* Progress */
     .progress-section {
@@ -434,6 +450,93 @@
       .camera-grid { grid-template-columns: 1fr; }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      min-width: 120px;
+      height: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-color: transparent;
+      color: white;
+    }
+    .tab-panel {
+      display: none;
+      animation: fadeIn .2s ease;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Brands grid */
+    .brands-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .brand-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .brand-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .brand-card-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+    .brand-card-summary {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .brand-card-footer {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -443,8 +546,69 @@
       <div id="subtitle">Intelligent camera detection and configuration</div>
     </header>
 
-    <!-- Network Configuration -->
-    <div class="card">
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="dashboard" id="tab-dashboard">
+        <span>🏠</span><span>Dashboard</span>
+      </button>
+      <button class="tab-btn" data-tab="scan" id="tab-scan">
+        <span>🔍</span><span>Scan</span>
+      </button>
+      <button class="tab-btn" data-tab="brands" id="tab-brands">
+        <span>📚</span><span>Brands</span>
+      </button>
+      <button class="tab-btn" data-tab="system" id="tab-system">
+        <span>💻</span><span>System</span>
+      </button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div class="tab-panel active" id="panel-dashboard">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-title">
+          <span class="icon">🚀</span>
+          Quick Actions
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn" id="quick-scan-btn">
+            <span>🔍</span><span>Start Network Scan</span>
+          </button>
+          <button class="btn btn-secondary" id="quick-brands-btn">
+            <span>📚</span><span>Browse Brand Guides</span>
+          </button>
+          <button class="btn btn-secondary" id="quick-system-btn">
+            <span>💻</span><span>View System Info</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" id="recent-scans-card" style="display:none;">
+        <div class="card-title">
+          <span class="icon">📊</span>
+          Recent Scan Summary
+        </div>
+        <div id="recent-summary" style="font-size:0.9rem; color:var(--muted);">No recent scans</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">ℹ️</span>
+          Getting Started
+        </div>
+        <div style="font-size:0.9rem; line-height:1.8;">
+          <p style="margin-bottom:12px;">Welcome to <b>tvtv Camera Setup</b>. Use the tabs above to:</p>
+          <ul style="padding-left:20px; line-height:2;">
+            <li><b>Scan</b> — discover cameras on your network</li>
+            <li><b>Brands</b> — get step-by-step setup guides for 27+ camera brands</li>
+            <li><b>System</b> — view hostname, OS, CPU, memory, and network interfaces</li>
+          </ul>
+          <p style="margin-top:12px; color:var(--muted);">All data stays local. No API keys required.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan Tab -->
+    <div class="tab-panel" id="panel-scan">
       <div class="card-title">
         <span class="icon">🌐</span>
         Network Configuration
@@ -531,6 +695,40 @@
         </div>
       </div>
       <div class="camera-grid" id="camera-grid" style="display:none;"></div>
+    </div>
+
+    <!-- Brands Tab -->
+    <div class="tab-panel" id="panel-brands">
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">📚</span>
+          Camera Brand Guides
+        </div>
+        <div style="margin-bottom:16px;">
+          <input type="text" id="brand-search" placeholder="Search brands (e.g., Hikvision, Dahua, TP-Link)…" style="width:100%;" />
+        </div>
+        <div id="brands-grid" class="brands-grid"></div>
+      </div>
+    </div>
+
+    <!-- System Tab -->
+    <div class="tab-panel" id="panel-system">
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">💻</span>
+          System Information
+        </div>
+        <div id="system-info" style="font-size:0.9rem; line-height:1.8;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">🔄</span>
+          Refresh
+        </div>
+        <button class="btn" id="refresh-system-btn">
+          <span>🔄</span><span>Refresh System Info</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1032,18 +1230,18 @@
     // Persist results
     const HISTORY_KEY = 'tvtv_camera_history';
     let currentCameras = [];
-    
+
     function persistCameras(cameras) {
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(cameras)); } catch (e) {}
     }
-    
+
     function loadPersistedCameras() {
       try {
         const raw = localStorage.getItem(HISTORY_KEY);
         return raw ? JSON.parse(raw) : [];
       } catch (e) { return []; }
     }
-    
+
     function refreshHistory() {
       const history = loadPersistedCameras();
       if (history.length > 0) {
@@ -1051,6 +1249,117 @@
       } else {
         exportBar.style.display = 'none';
       }
+      
+      // Update recent scans card on dashboard
+      const recentCard = $('recent-scans-card');
+      const recentSummary = $('recent-summary');
+      if (recentCard && recentSummary && history.length > 0) {
+        const brands = new Set(history.map(c => c.brand).filter(Boolean));
+        const onvifCount = history.filter(c => c.onvif).length;
+        recentSummary.innerHTML = `
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:8px;">
+            <div><span style="color:var(--muted);">Cameras:</span> <b>${history.length}</b></div>
+            <div><span style="color:var(--muted);">Brands:</span> <b>${brands.size}</b></div>
+            <div><span style="color:var(--muted);">ONVIF:</span> <b>${onvifCount}</b></div>
+          </div>
+        `;
+        recentCard.style.display = 'block';
+      }
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      // Update buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+      
+      // Update panels
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === `panel-${tabName}`);
+      });
+      
+      // Load data for specific tabs
+      if (tabName === 'brands') loadBrandsGrid();
+      if (tabName === 'system') loadSystemInfo();
+      if (tabName === 'dashboard') refreshHistory();
+    }
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    
+    // Quick action buttons
+    const quickScanBtn = $('quick-scan-btn');
+    if (quickScanBtn) quickScanBtn.addEventListener('click', () => switchTab('scan'));
+    
+    const quickBrandsBtn = $('quick-brands-btn');
+    if (quickBrandsBtn) quickBrandsBtn.addEventListener('click', () => switchTab('brands'));
+    
+    const quickSystemBtn = $('quick-system-btn');
+    if (quickSystemBtn) quickSystemBtn.addEventListener('click', () => switchTab('system'));
+    
+    const refreshSystemBtn = $('refresh-system-btn');
+    if (refreshSystemBtn) refreshSystemBtn.addEventListener('click', loadSystemInfo);
+    
+    // Brands grid
+    async function loadBrandsGrid(filter = '') {
+      const grid = $('brands-grid');
+      if (!grid) return;
+      
+      try {
+        const r = await fetch(`${API}/api/brands`);
+        if (!r.ok) throw new Error('Failed to load brands');
+        const data = await r.json();
+        
+        const brands = Object.entries(data).filter(([name, info]) => {
+          if (!filter) return true;
+          const q = filter.toLowerCase();
+          return name.toLowerCase().includes(q) || 
+                 (info.summary || '').toLowerCase().includes(q);
+        });
+        
+        grid.innerHTML = brands.map(([name, info]) => `
+          <div class="brand-card" data-brand="${name}">
+            <div class="brand-card-title">${name}</div>
+            <div class="brand-card-summary">${info.summary || ''}</div>
+            <div class="brand-card-footer">
+              <span class="badge badge-info">📋 Guide</span>
+              ${info.ports ? `<span class="badge badge-info">🔌 Ports</span>` : ''}
+              ${info.credentials ? `<span class="badge badge-info">🔑 Creds</span>` : ''}
+            </div>
+          </div>
+        `).join('');
+        
+        // Wire click handlers
+        grid.querySelectorAll('.brand-card').forEach(card => {
+          card.addEventListener('click', async () => {
+            const brand = card.dataset.brand;
+            showToast(`Loading guide for ${brand}…`, 'info');
+            try {
+              const r2 = await fetch(`${API}/api/brands/${encodeURIComponent(brand)}`);
+              if (!r2.ok) {
+                const err = await r2.json();
+                throw new Error(err.detail || 'Brand not found');
+              }
+              const guide = await r2.json();
+              showBrandGuideModal(guide);
+            } catch (e) {
+              showToast('Brand guide failed: ' + e.message, 'error');
+            }
+          });
+        });
+      } catch (e) {
+        grid.innerHTML = `<div style="color:var(--danger); padding:20px;">Failed to load brands: ${e.message}</div>`;
+      }
+    }
+    
+    // Brand search
+    const brandSearch = $('brand-search');
+    if (brandSearch) {
+      brandSearch.addEventListener('input', (e) => {
+        loadBrandsGrid(e.target.value);
+      });
     }
     
     showToast('Ready to scan network', 'info');
