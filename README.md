@@ -25,21 +25,23 @@ bash scripts/start.sh
 # Open http://localhost:8000 in browser
 ```
 
-## Deploy on NUC
+## Installation
+
+### Option 1: Bootable USB (recommended)
+
+```bash
+# On any Linux machine with the tvtv-yt repo:
+sudo ./iso/create-usb.sh /dev/sdX
+
+# Boot NUC from USB, select "tvtv-yt Auto Install"
+# Installation takes ~10 minutes, then auto-reboots to HTPC interface
+```
+
+### Option 2: Manual install on existing Ubuntu
 
 ```bash
 # As root, after copying this repo to /home/htpc/tvtv:
 bash scripts/setup.sh
-
-# Configure TV output mode:
-bash scripts/detect-tv.sh
-
-# Set up CEC remote control:
-bash scripts/setup-cec.sh
-
-# Write default TV profile:
-bash scripts/tv-profile.sh
-
 # Reboot. Auto-logs in, starts Labwc + Chromium kiosk.
 ```
 

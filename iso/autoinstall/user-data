@@ -1,0 +1,76 @@
+# tvtv-yt Ubuntu Server Autoinstall Config
+# Place this on a USB drive or HTTP server and boot with:
+#   autoinstall ds=nocloud-net;s=http://192.168.1.100/autoinstall/
+
+version: 1
+autoinstall:
+  # ── Identity ─────────────────────────────────────────────────────────────
+  identity:
+    hostname: tvtv
+    username: htpc
+    password: "$6$rounds=4096$tvtv$tvtv"
+    realname: "tvtv HTPC"
+
+  # ── Storage ──────────────────────────────────────────────────────────────
+  storage:
+    layout:
+      name: direct
+
+  # ── Network ──────────────────────────────────────────────────────────────
+  network:
+    network:
+      version: 2
+      ethernets:
+        eth0:
+          dhcp4: true
+      optional: true
+      wifi:
+        optional: true
+
+  # ── Packages ─────────────────────────────────────────────────────────────
+  packages:
+    - curl
+    - wget
+    - git
+    - python3
+    - python3-venv
+    - python3-pip
+    - mpv
+    - yt-dlp
+    - labwc
+    - swaybg
+    - chromium
+    - cec-utils
+    - fonts-noto
+    - fonts-noto-color-emoji
+    - xdg-utils
+
+  # ── Late Commands ────────────────────────────────────────────────────────
+  late-commands:
+    # Copy tvtv-yt code
+    - "curtin in-target --target=/target -- cp -r /source/home/htpc/tvtv /target/home/htpc/tvtv"
+    - "curtin in-target --target=/target -- chown -R htpc:htpc /home/htpc/tvtv"
+    
+    # Create venv and install backend
+    - "curtin in-target --target=/target -- sudo -u htpc python3 -m venv /home/htpc/tvtv/.venv"
+    - "curtin in-target --target=/target -- sudo -u htpc /home/htpc/tvtv/.venv/bin/pip install -r /home/htpc/tvtv/src/backend/requirements.txt -q"
+    
+    # Set up systemd service
+    - "curtin in-target --target=/target -- cp /home/htpc/tvtv/scripts/tvtv-yt.service /etc/systemd/system/"
+    - "curtin in-target --target=/target -- systemctl enable tvtv-yt.service"
+    
+    # Configure Labwc autostart
+    - "curtin in-target --target=/target -- mkdir -p /home/htpc/.config/labwc"
+    - "curtin in-target --target=/target -- bash -c 'cat > /home/htpc/.config/labwc/autostart <<EOF\n#!/usr/bin/env bash\nsleep 2\nchromium --kiosk --noerrdialogs --disable-infobars http://localhost:8000/\nEOF'"
+    - "curtin in-target --target=/target -- chmod +x /home/htpc/.config/labwc/autostart"
+    
+    # Set up autologin
+    - "curtin in-target --target=/target -- mkdir -p /etc/systemd/system/getty@tty1.service.d"
+    - "curtin in-target --target=/target -- bash -c 'cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF\n[Service]\nExecStart=\nExecStart=-/sbin/agetty --autologin htpc --noclear %I $TERM\nEOF'"
+    
+    # Create .bash_profile for Labwc autostart
+    - "curtin in-target --target=/target -- bash -c 'cat > /home/htpc/.bash_profile <<EOF\nif [ -z \\\"$WAYLAND_DISPLAY\\\" ] && [ \\\"$(tty)\\\" = \\\"/dev/tty1\\\" ]; then\n  export XDG_RUNTIME_DIR=\\\"/run/user/$(id -u)\\\"\n  export XDG_SESSION_TYPE=\\\"wayland\\\"\n  export XDG_CURRENT_DESKTOP=\\\"labwc\\\"\n  export $(dbus-launch)\n  exec labwc\nfi\nEOF'"
+    - "curtin in-target --target=/target -- chown htpc:htpc /home/htpc/.bash_profile"
+
+  # ── Shutdown ─────────────────────────────────────────────────────────────
+  shutdown: reboot
