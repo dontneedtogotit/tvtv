@@ -106,7 +106,7 @@
     /* Network config */
     .config-row {
       display: grid;
-      grid-template-columns: 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr auto auto;
       gap: 12px;
       align-items: end;
     }
@@ -643,6 +643,10 @@
           <span>🔍</span>
           <span>Scan Network</span>
         </button>
+        <button class="btn btn-secondary" id="cancel-scan-btn" style="display:none;">
+          <span>✕</span>
+          <span>Cancel</span>
+        </button>
       </div>
     </div>
 
@@ -759,6 +763,7 @@
     const $ = id => document.getElementById(id);
 
     const scanBtn = $('scan-btn');
+    const cancelScanBtn = $('cancel-scan-btn');
     const progressSection = $('progress-section');
     const progressFill = $('progress-fill');
     const progressPercent = $('progress-percent');
@@ -910,19 +915,28 @@
       isScanning = true;
       scanBtn.disabled = true;
       scanBtn.innerHTML = '<span class="spinner"></span><span>Scanning…</span>';
+      cancelScanBtn.style.display = 'inline-flex';
+      
+      const controller = new AbortController();
+      scanAbortController = controller;
       
       progressSection.classList.add('visible');
       setProgress(0, 'Scanning network…', 'Initializing…');
+      
+      let scanComplete = false;
+      let scanError = null;
       
       try {
         const r = await fetch(`${API}/api/scan`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ network, ports: [80, 443, 554, 555, 8080, 8443, 8554], timeout }),
+          signal: controller.signal,
         });
 
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
+        scanComplete = true;
 
         setProgress(100, 'Complete', `Found ${data.cameras_found} cameras`);
         
@@ -960,12 +974,26 @@
         // Apply any active filter/sort after rendering
         renderFilteredCameras();
       } catch (e) {
-        setProgress(0, 'Error', e.message);
-        showToast('Scan failed: ' + e.message, 'error');
+        if (e.name === 'AbortError') {
+          setProgress(0, 'Cancelled', 'Scan was cancelled');
+          showToast('Scan cancelled', 'info');
+        } else {
+          scanError = e;
+          setProgress(0, 'Error', e.message);
+          showToast('Scan failed: ' + e.message, 'error');
+        }
       } finally {
         isScanning = false;
         scanBtn.disabled = false;
         scanBtn.innerHTML = '<span>🔍</span><span>Scan Network</span>';
+        cancelScanBtn.style.display = 'none';
+        scanAbortController = null;
+      }
+    }
+    
+    async function cancelScan() {
+      if (scanAbortController) {
+        scanAbortController.abort();
       }
     }
 
@@ -1027,6 +1055,9 @@
 
     // Init
     scanBtn.addEventListener('click', startScan);
+    if (cancelScanBtn) {
+      cancelScanBtn.addEventListener('click', cancelScan);
+    }
     
     // Enter key to scan
     ['network', 'timeout'].forEach(id => {
