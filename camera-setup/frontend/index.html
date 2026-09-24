@@ -451,6 +451,23 @@
       .stats-row { grid-template-columns: repeat(2, 1fr); }
     }
 
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      backdrop-filter: blur(4px);
+      padding: 20px;
+    }
+    .camera-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent), 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
     /* Tabs */
     .tab-nav {
       display: flex;
@@ -939,6 +956,9 @@
           cameraGrid.style.display = 'none';
           showToast('No cameras found on this network', 'info');
         }
+        
+        // Apply any active filter/sort after rendering
+        renderFilteredCameras();
       } catch (e) {
         setProgress(0, 'Error', e.message);
         showToast('Scan failed: ' + e.message, 'error');
@@ -1003,9 +1023,7 @@
       });
     }
 
-    function showDetails(ip) {
-      showToast(`Camera details for ${ip}`, 'info');
-    }
+    // Details modal removed in favor of enhanced version below
 
     // Init
     scanBtn.addEventListener('click', startScan);
@@ -1183,50 +1201,8 @@
       URL.revokeObjectURL(url);
     }
     
-    // Details modal
-    function showDetails(ip) {
-      const cam = currentCameras.find(c => c.ip === ip);
-      if (!cam) return;
-      
-      const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);';
-      modal.innerHTML = `
-        <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:28px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-            <div>
-              <div style="font-size:1.2rem;font-weight:900;">${cam.brand}</div>
-              <div style="font-family:'SF Mono',monospace;color:var(--muted);font-size:0.9rem;">${cam.ip}</div>
-            </div>
-            <button id="close-modal" style="background:var(--surface2);border:2px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:1.1rem;">✕</button>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">MAC Address</span><span style="font-weight:600;">${cam.mac || '—'}</span></div>
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Port</span><span style="font-weight:600;">${cam.port}</span></div>
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">ONVIF</span><span style="font-weight:600;">${cam.onvif ? '✅ Yes' : '❌ No'}</span></div>
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Confidence</span><span style="font-weight:600;">${cam.confidence}</span></div>
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Methods</span><span style="font-weight:600;">${cam.methods.join(', ') || '—'}</span></div>
-            ${cam.rtsp_url ? `
-              <div style="margin-top:8px;">
-                <div style="color:var(--muted);font-size:0.85rem;margin-bottom:6px;">RTSP URL</div>
-                <div style="background:var(--bg);padding:10px;border-radius:8px;font-family:'SF Mono',monospace;font-size:0.85rem;word-break:break-all;">${cam.rtsp_url}</div>
-                <button class="btn btn-sm" style="margin-top:8px;width:100%;" onclick="navigator.clipboard.writeText('${cam.rtsp_url}').then(()=>{showToast('RTSP URL copied','success')})">📋 Copy RTSP URL</button>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      const close = () => modal.remove();
-      modal.addEventListener('click', e => {
-        if (e.target === modal || e.target.id === 'close-modal') close();
-      });
-      document.addEventListener('keydown', function handler(e) {
-        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
-      });
-    }
-    
+    // Details modal removed in favor of enhanced version below
+
     // Persist results
     const HISTORY_KEY = 'tvtv_camera_history';
     let currentCameras = [];
@@ -1361,6 +1337,284 @@
         loadBrandsGrid(e.target.value);
       });
     }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Ctrl+F or / to focus brand search
+      if ((e.ctrlKey && e.key === 'f') || (e.key === '/' && !e.ctrlKey && !e.metaKey && document.activeElement === document.body)) {
+        const brandSearchEl = $('brand-search');
+        const networkInput = $('network');
+        if (brandSearchEl && document.activeElement !== brandSearchEl) {
+          e.preventDefault();
+          switchTab('brands');
+          setTimeout(() => brandSearchEl.focus(), 100);
+        } else if (networkInput && document.activeElement !== networkInput) {
+          e.preventDefault();
+          switchTab('scan');
+          setTimeout(() => networkInput.focus(), 100);
+        }
+      }
+      
+      // 1-4 to switch tabs
+      if (e.key >= '1' && e.key <= '4' && !e.ctrlKey && !e.metaKey && document.activeElement === document.body) {
+        const tabs = ['dashboard', 'scan', 'brands', 'system'];
+        const idx = parseInt(e.key) - 1;
+        if (idx < tabs.length) {
+          e.preventDefault();
+          switchTab(tabs[idx]);
+        }
+      }
+      
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+      }
+    });
+
+    // Camera search/filter/sort
+    let cameraSearchTerm = '';
+    let cameraSortField = 'ip';
+    let cameraSortDir = 'asc';
+
+    function renderFilteredCameras() {
+      if (!currentCameras.length) {
+        emptyState.style.display = 'block';
+        cameraGrid.style.display = 'none';
+        return;
+      }
+
+      let filtered = currentCameras.filter(c => {
+        if (!cameraSearchTerm) return true;
+        const q = cameraSearchTerm.toLowerCase();
+        return (
+          (c.ip || '').includes(q) ||
+          (c.brand || '').toLowerCase().includes(q) ||
+          (c.mac || '').toLowerCase().includes(q) ||
+          (c.rtsp_url || '').toLowerCase().includes(q)
+        );
+      });
+
+      filtered.sort((a, b) => {
+        const aVal = (a[cameraSortField] || '').toString().toLowerCase();
+        const bVal = (b[cameraSortField] || '').toString().toLowerCase();
+        if (aVal < bVal) return cameraSortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return cameraSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      emptyState.style.display = 'none';
+      cameraGrid.style.display = 'grid';
+      cameraGrid.innerHTML = '';
+      filtered.forEach(camera => {
+        cameraGrid.appendChild(renderCameraCard(camera));
+      });
+    }
+
+    // Add search/filter bar to scan tab
+    const scanPanel = $('panel-scan');
+    if (scanPanel) {
+      const filterBar = document.createElement('div');
+      filterBar.className = 'card';
+      filterBar.style.marginBottom = '16px';
+      filterBar.innerHTML = `
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <div class="input-group" style="flex:1; min-width:200px;">
+            <label style="font-size:0.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Search Cameras</label>
+            <input type="text" id="camera-search" placeholder="Filter by IP, brand, MAC…" value="" />
+          </div>
+          <div class="input-group" style="min-width:140px;">
+            <label style="font-size:0.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Sort By</label>
+            <select id="camera-sort">
+              <option value="ip">IP Address</option>
+              <option value="brand">Brand</option>
+              <option value="confidence">Confidence</option>
+              <option value="port">Port</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="test-connection-btn" style="height:48px;">
+            <span>🔌</span><span>Test Connection</span>
+          </button>
+        </div>
+      `;
+      scanPanel.insertBefore(filterBar, scanPanel.firstChild);
+
+      const cameraSearchInput = $('camera-search');
+      if (cameraSearchInput) {
+        cameraSearchInput.addEventListener('input', (e) => {
+          cameraSearchTerm = e.target.value;
+          renderFilteredCameras();
+        });
+      }
+
+      const cameraSortSelect = $('camera-sort');
+      if (cameraSortSelect) {
+        cameraSortSelect.addEventListener('change', (e) => {
+          cameraSortField = e.target.value;
+          renderFilteredCameras();
+        });
+      }
+
+      // Test connection button
+      const testConnBtn = $('test-connection-btn');
+      if (testConnBtn) {
+        testConnBtn.addEventListener('click', async () => {
+          const selectedCard = document.querySelector('.camera-card.selected');
+          if (!selectedCard) {
+            showToast('Select a camera card first', 'error');
+            return;
+          }
+          const ip = selectedCard.dataset.ip;
+          if (!ip) return;
+          
+          showToast(`Testing connection to ${ip}…`, 'info');
+          try {
+            const r = await fetch(`${API}/api/probe`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ ip }),
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (data.success) {
+              showToast(`✅ Connection successful: ${data.brand || 'camera'}`, 'success');
+            } else {
+              showToast(`❌ Connection failed: ${data.message || 'unknown'}`, 'error');
+            }
+          } catch (e) {
+            showToast('Connection test failed: ' + e.message, 'error');
+          }
+        });
+      }
+    }
+
+    // QR code in details modal
+    function showQRModal(rtspUrl) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);';
+      
+      modal.innerHTML = `
+        <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:28px;max-width:420px;width:90%;text-align:center;">
+          <div style="font-size:1.1rem;font-weight:900;margin-bottom:16px;">RTSP QR Code</div>
+          <div id="qr-image" style="background:white; padding:16px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
+          <div style="font-size:0.8rem; color:var(--muted); word-break:break-all; margin-bottom:12px;">${rtspUrl}</div>
+          <button class="btn btn-secondary" id="copy-rtsp-qr-btn" style="width:100%;">📋 Copy RTSP URL</button>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Load QR from backend
+      fetch(`${API}/api/qr`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ data: rtspUrl }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('qr-image').innerHTML = `<img src="data:image/png;base64,${data.qr_png_base64}" style="max-width:100%; height:auto; display:block;" />`;
+          }
+        })
+        .catch(() => {
+          document.getElementById('qr-image').innerHTML = `<div style="color:var(--danger);">Failed to generate QR</div>`;
+        });
+      
+      const close = () => modal.remove();
+      modal.addEventListener('click', e => {
+        if (e.target === modal) close();
+      });
+      document.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+      });
+    }
+
+    // Enhanced showDetails with QR and notes
+    const originalShowDetails = window.showDetails;
+    window.showDetails = function(ip) {
+      const cam = currentCameras.find(c => c.ip === ip);
+      if (!cam) return;
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);';
+      modal.innerHTML = `
+        <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:28px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <div>
+              <div style="font-size:1.2rem;font-weight:900;">${cam.brand}</div>
+              <div style="font-family:'SF Mono',monospace;color:var(--muted);font-size:0.9rem;">${cam.ip}</div>
+            </div>
+            <button id="close-details-modal" style="background:var(--surface2);border:2px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:1.1rem;">✕</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px; margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">MAC Address</span><span style="font-weight:600;">${cam.mac || '—'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Port</span><span style="font-weight:600;">${cam.port}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">ONVIF</span><span style="font-weight:600;">${cam.onvif ? '✅ Yes' : '❌ No'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Confidence</span><span style="font-weight:600;">${cam.confidence}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Methods</span><span style="font-weight:600;">${cam.methods.join(', ') || '—'}</span></div>
+            ${cam.rtsp_url ? `
+              <div style="margin-top:8px;">
+                <div style="color:var(--muted);font-size:0.85rem;margin-bottom:6px;">RTSP URL</div>
+                <div style="background:var(--bg);padding:10px;border-radius:8px;font-family:'SF Mono',monospace;font-size:0.85rem;word-break:break-all;">${cam.rtsp_url}</div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                  <button class="btn btn-sm" id="details-copy-rtsp-btn" data-url="${cam.rtsp_url}" style="flex:1;">📋 Copy</button>
+                  <button class="btn btn-sm btn-secondary" id="details-qr-btn" data-url="${cam.rtsp_url}" style="flex:1;">📱 QR Code</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          <div style="margin-top:12px;">
+            <div style="font-weight:700;margin-bottom:6px;color:var(--accent);">Notes</div>
+            <textarea id="camera-notes" placeholder="Add notes about this camera…" style="width:100%; min-height:80px; padding:10px; background:var(--bg); border:2px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; resize:vertical;">${cam.notes || ''}</textarea>
+            <button class="btn btn-secondary" id="save-notes-btn" style="width:100%; margin-top:8px;">💾 Save Notes</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      const close = () => modal.remove();
+      modal.addEventListener('click', e => {
+        if (e.target === modal || e.target.id === 'close-details-modal') close();
+      });
+      
+      // Wire copy button
+      const copyBtn = modal.querySelector('#details-copy-rtsp-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const url = copyBtn.dataset.url;
+          navigator.clipboard.writeText(url).then(() => showToast('RTSP URL copied', 'success'));
+        });
+      }
+      
+      // Wire QR button
+      const qrBtn = modal.querySelector('#details-qr-btn');
+      if (qrBtn) {
+        qrBtn.addEventListener('click', () => {
+          const url = qrBtn.dataset.url;
+          showQRModal(url);
+        });
+      }
+      
+      // Wire notes save
+      const saveNotesBtn = modal.querySelector('#save-notes-btn');
+      const notesArea = modal.querySelector('#camera-notes');
+      if (saveNotesBtn && notesArea) {
+        saveNotesBtn.addEventListener('click', async () => {
+          try {
+            const r = await fetch(`${API}/api/camera-notes`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ ip: cam.ip, notes: notesArea.value }),
+            });
+            if (!r.ok) throw new Error('Failed to save notes');
+            showToast('Notes saved', 'success');
+          } catch (e) {
+            showToast('Failed to save notes', 'error');
+          }
+        });
+      }
+    };
     
     showToast('Ready to scan network', 'info');
     refreshHistory();

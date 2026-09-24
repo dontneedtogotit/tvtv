@@ -33,6 +33,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import qrcode
+import io
+import base64
+from datetime import datetime
 
 app = FastAPI(title="tvtv-camera-setup", version="0.1.0")
 
@@ -152,6 +156,11 @@ class Camera(BaseModel):
     confidence: str = "low"  # low, medium, high
     methods: list[str] = []
     credentials: tuple[str, str] = ("admin", "")
+    notes: str = ""
+    last_updated: str = ""
+
+# In-memory camera notes store: {ip: {notes, last_updated}}
+_CAMERA_NOTES: dict[str, dict] = {}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -203,9 +212,9 @@ def _get_http_banner(ip: str, port: int = 80, timeout: float = 2.0) -> tuple[str
         title_match = re.search(r"<title[^>]*>(.*?)</title>", resp.text, re.IGNORECASE | re.DOTALL)
         if title_match:
             title = title_match.group(1).strip()[:200]
-        return server, title
     except Exception:
-        return "", ""
+        pass
+    return server, title
 
 def _detect_brand_from_banner(server: str, title: str) -> tuple[str, str]:
     """Detect brand from HTTP banner."""
@@ -394,6 +403,8 @@ async def scan_network(req: ScanRequest) -> dict:
             confidence=confidence,
             methods=methods,
             credentials=creds,
+            notes=_CAMERA_NOTES.get(ip, {}).get("notes", ""),
+            last_updated=_CAMERA_NOTES.get(ip, {}).get("last_updated", ""),
         )
         cameras.append(camera)
     
@@ -458,6 +469,56 @@ async def probe_camera(req: ProbeRequest) -> dict:
         "http_banner": server_banner,
         "title": title,
     }
+
+class CameraNotesRequest(BaseModel):
+    ip: str
+    notes: str = ""
+
+@app.post("/api/camera-notes")
+def save_camera_notes(req: CameraNotesRequest) -> dict:
+    """Save notes for a camera by IP."""
+    if not req.ip:
+        raise HTTPException(400, "IP address required")
+    
+    _CAMERA_NOTES[req.ip] = {
+        "notes": req.notes,
+        "last_updated": datetime.now().isoformat(),
+    }
+    return {"success": True, "ip": req.ip}
+
+@app.get("/api/camera-notes/{ip}")
+def get_camera_notes(ip: str) -> dict:
+    """Get saved notes for a camera by IP."""
+    return _CAMERA_NOTES.get(ip, {"notes": "", "last_updated": ""})
+
+@app.get("/api/qr/{data}")
+def generate_qr(data: str) -> dict:
+    """Generate QR code for RTSP URL or any data."""
+    try:
+        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+        qr.add_data(data)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="#00d4ff", back_color="#12121a")
+        buffer = io.BytesIO()
+        img.save(buffer)
+        buffer.seek(0)
+        
+        return {
+            "success": True,
+            "data": data,
+            "qr_png_base64": base64.b64encode(buffer.read()).decode(),
+        }
+    except Exception as e:
+        raise HTTPException(500, f"QR generation failed: {e}")
+
+class QRRequest(BaseModel):
+    data: str
+
+@app.post("/api/qr")
+def generate_qr_post(req: QRRequest) -> dict:
+    """Generate QR code via POST body to avoid URL encoding issues."""
+    return generate_qr(req.data)
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
