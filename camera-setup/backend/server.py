@@ -254,16 +254,74 @@ async def _get_rtsp_urls(ip: str, brand: str = "", user: str = "admin", password
 def health() -> dict:
     return {"status": "ok", "version": "0.1.0"}
 
+@app.get("/api/system")
+def system_info() -> dict:
+    """Get system information."""
+    import platform
+    import psutil
+    
+    try:
+        hostname = platform.node()
+        os_info = f"{platform.system()} {platform.release()}"
+        cpu_info = f"{platform.processor()} ({psutil.cpu_count()} cores)"
+        memory = psutil.virtual_memory()
+        memory_info = f"{memory.total // (1024**3)} GB total, {memory.percent}% used"
+        
+        # Network interfaces
+        interfaces = []
+        for name, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == 2:  # IPv4
+                    interfaces.append({"name": name, "ip": addr.address})
+                    break
+        
+        return {
+            "hostname": hostname,
+            "os": os_info,
+            "cpu": cpu_info,
+            "memory": memory_info,
+            "interfaces": interfaces,
+        }
+    except Exception as e:
+        return {
+            "hostname": "unknown",
+            "os": "unknown",
+            "cpu": "unknown",
+            "memory": "unknown",
+            "interfaces": [],
+            "error": str(e),
+        }
+
 @app.get("/api/brands")
 def get_brands() -> dict:
-    """Get all supported camera brands."""
-    brands = {}
-    for brand, data in BRANDS.items():
-        brands[brand] = {
-            "keywords": data.get("keywords", []),
-            "rtsp_ports": data.get("rtsp_ports", []),
-        }
-    return brands
+    """Get all supported camera brands with setup guides."""
+    return {brand: {
+        "summary": data.get("summary", ""),
+        "urls": [(name, url) for name, url in data.get("urls", [])[:2]],
+        "credentials": data.get("credentials", ""),
+        "ports": data.get("ports", ""),
+        "quirks": data.get("quirks", ""),
+    } for brand, data in BRANDS.items()}
+
+@app.get("/api/brands/{brand_name}")
+def get_brand_guide(brand_name: str) -> dict:
+    """Get detailed setup guide for a specific brand."""
+    # URL decode and normalize
+    brand_name = brand_name.replace("%20", " ").replace("%2F", "/")
+    
+    if brand_name not in BRANDS:
+        raise HTTPException(404, f"Brand '{brand_name}' not found")
+    
+    data = BRANDS[brand_name]
+    return {
+        "name": brand_name,
+        "summary": data.get("summary", ""),
+        "steps": data.get("steps", []),
+        "urls": data.get("urls", []),
+        "credentials": data.get("credentials", ""),
+        "ports": data.get("ports", ""),
+        "quirks": data.get("quirks", ""),
+    }
 
 @app.post("/api/scan")
 async def scan_network(req: ScanRequest) -> dict:

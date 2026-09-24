@@ -497,6 +497,15 @@
       </div>
     </div>
 
+    <!-- System Info -->
+    <div class="card" id="system-card" style="display:none;">
+      <div class="card-title">
+        <span class="icon">💻</span>
+        System Information
+      </div>
+      <div id="system-info" style="font-size:0.9rem; line-height:1.8;"></div>
+    </div>
+
     <!-- Export Bar -->
     <div id="export-bar" style="display:none; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
       <span style="color:var(--muted); font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Actions:</span>
@@ -504,6 +513,7 @@
       <button class="nav-tab" id="export-csv-btn">Export CSV</button>
       <button class="nav-tab" id="copy-all-rtsp-btn">Copy All RTSP</button>
       <button class="nav-tab" id="clear-history-btn">Clear History</button>
+      <button class="nav-tab" id="brand-guide-btn">📚 Brand Guide</button>
     </div>
 
     <!-- Results -->
@@ -863,6 +873,108 @@
         refreshHistory();
       });
     }
+
+    // Brand guide
+    const brandGuideBtn = $('brand-guide-btn');
+    if (brandGuideBtn) {
+      brandGuideBtn.addEventListener('click', async () => {
+        const brand = prompt('Enter camera brand (e.g., Hikvision, Dahua, TP-Link, Reolink):');
+        if (!brand) return;
+        
+        showToast(`Loading guide for ${brand}…`, 'info');
+        try {
+          const r = await fetch(`${API}/api/brands/${encodeURIComponent(brand)}`);
+          if (!r.ok) {
+            const err = await r.json();
+            throw new Error(err.detail || 'Brand not found');
+          }
+          const data = await r.json();
+          showBrandGuideModal(data);
+        } catch (e) {
+          showToast('Brand guide failed: ' + e.message, 'error');
+        }
+      });
+    }
+
+    function showBrandGuideModal(guide) {
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);';
+      
+      let html = `
+        <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:28px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <div>
+              <div style="font-size:1.2rem;font-weight:900;">${guide.name}</div>
+              <div style="color:var(--muted);font-size:0.9rem;margin-top:4px;">${guide.summary || ''}</div>
+            </div>
+            <button id="close-brand-modal" style="background:var(--surface2);border:2px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:1.1rem;">✕</button>
+          </div>
+      `;
+      
+      if (guide.steps && guide.steps.length) {
+        html += `
+          <div style="margin-bottom:16px;">
+            <div style="font-weight:700;margin-bottom:8px;color:var(--accent);">Setup Steps</div>
+            <ol style="padding-left:20px;line-height:1.6;">
+              ${guide.steps.map(s => `<li style="margin-bottom:6px;">${s}</li>`).join('')}
+            </ol>
+          </div>
+        `;
+      }
+      
+      if (guide.urls && guide.urls.length) {
+        html += `
+          <div style="margin-bottom:16px;">
+            <div style="font-weight:700;margin-bottom:8px;color:var(--accent);">RTSP URLs</div>
+            ${guide.urls.map((name, url) => `
+              <div style="background:var(--bg);padding:8px 12px;border-radius:6px;margin-bottom:6px;font-family:'SF Mono',monospace;font-size:0.85rem;word-break:break-all;cursor:pointer;" onclick="navigator.clipboard.writeText('${url}').then(()=>{showToast('URL copied','success')})">
+                <div style="color:var(--muted);font-size:0.75rem;margin-bottom:2px;">${name}</div>
+                <div>${url}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      if (guide.credentials) {
+        html += `
+          <div style="margin-bottom:12px;">
+            <div style="font-weight:700;margin-bottom:4px;color:var(--accent);">Credentials</div>
+            <div style="font-size:0.9rem;">${guide.credentials}</div>
+          </div>
+        `;
+      }
+      
+      if (guide.ports) {
+        html += `
+          <div style="margin-bottom:12px;">
+            <div style="font-weight:700;margin-bottom:4px;color:var(--accent);">Ports</div>
+            <div style="font-size:0.9rem;font-family:'SF Mono',monospace;">${guide.ports}</div>
+          </div>
+        `;
+      }
+      
+      if (guide.quirks) {
+        html += `
+          <div style="background:rgba(245,158,11,0.1);border-left:4px solid var(--warning);padding:12px;border-radius:6px;">
+            <div style="font-weight:700;margin-bottom:4px;color:var(--warning);">⚠️ Quirks</div>
+            <div style="font-size:0.9rem;">${guide.quirks}</div>
+          </div>
+        `;
+      }
+      
+      html += '</div>';
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+      
+      const close = () => modal.remove();
+      modal.addEventListener('click', e => {
+        if (e.target === modal || e.target.id === 'close-brand-modal') close();
+      });
+      document.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+      });
+    }
     
     function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
@@ -943,6 +1055,38 @@
     
     showToast('Ready to scan network', 'info');
     refreshHistory();
+    
+    // Load system info
+    async function loadSystemInfo() {
+      try {
+        const r = await fetch(`${API}/api/system`);
+        if (!r.ok) return;
+        const data = await r.json();
+        
+        const systemCard = $('system-card');
+        const systemInfo = $('system-info');
+        if (systemCard && systemInfo) {
+          systemInfo.innerHTML = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <div><span style="color:var(--muted);">Hostname:</span> <span style="font-weight:600;">${data.hostname || '—'}</span></div>
+              <div><span style="color:var(--muted);">OS:</span> <span style="font-weight:600;">${data.os || '—'}</span></div>
+              <div><span style="color:var(--muted);">CPU:</span> <span style="font-weight:600;">${data.cpu || '—'}</span></div>
+              <div><span style="color:var(--muted);">Memory:</span> <span style="font-weight:600;">${data.memory || '—'}</span></div>
+            </div>
+            ${data.interfaces && data.interfaces.length ? `
+              <div style="margin-top:12px;">
+                <div style="color:var(--muted);font-weight:700;margin-bottom:6px;">Network Interfaces</div>
+                ${data.interfaces.map(i => `<div style="font-family:'SF Mono',monospace;font-size:0.85rem;">${i.name}: ${i.ip}</div>`).join('')}
+              </div>
+            ` : ''}
+          `;
+          systemCard.style.display = 'block';
+        }
+      } catch (e) {
+        // Silently fail
+      }
+    }
+    loadSystemInfo();
   })();
   </script>
 </body>
