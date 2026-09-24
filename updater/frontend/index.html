@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>tvtv Updater</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: #2a2a2a;
+      --accent: #00d084;
+      --accent2: #00f59b;
+      --danger: #ff4444;
+      --warning: #ffaa00;
+      --text: #f0f0f0;
+      --muted: #888;
+      --radius: 12px;
+      --gap: 20px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-size: 16px;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: var(--gap);
+      gap: var(--gap);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #logo {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #logo::before {
+      content: "↻";
+      font-size: 1.8rem;
+    }
+    #status {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding: 6px 12px;
+      background: var(--surface);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    /* Version cards */
+    #versions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap);
+      flex-shrink: 0;
+    }
+    .version-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+    .version-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .version-number {
+      font-size: 1.8rem;
+      font-weight: 900;
+      font-family: "SF Mono", Monaco, monospace;
+    }
+    .version-card.installed .version-number { color: var(--text); }
+    .version-card.latest .version-number { color: var(--accent); }
+    .version-card.outdated .version-number { color: var(--warning); }
+
+    /* Update banner */
+    #update-banner {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      flex-shrink: 0;
+      display: none;
+    }
+    #update-banner.visible { display: block; }
+    #update-banner.has-update { border-color: var(--accent); }
+    #update-banner.error { border-color: var(--danger); }
+
+    .banner-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .banner-text {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .release-notes {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 52px;
+      padding: 0 24px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      width: 100%;
+    }
+    .btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+    .btn.primary:hover:not(:disabled) {
+      background: var(--accent2);
+      border-color: var(--accent2);
+    }
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Progress */
+    #progress-section {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      flex-shrink: 0;
+      display: none;
+    }
+    #progress-section.visible { display: block; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+    .progress-bar {
+      height: 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 6px;
+      transition: width .3s;
+      width: 0%;
+    }
+    .progress-status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Logs */
+    #logs-section {
+      flex: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .logs-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    #logs {
+      flex: 1;
+      overflow-y: auto;
+      font-family: "SF Mono", Monaco, monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+    .log-line {
+      padding: 2px 0;
+      border-bottom: 1px solid var(--bg);
+    }
+    .log-line.error { color: var(--danger); }
+    .log-line.success { color: var(--accent); }
+    .log-line.warning { color: var(--warning); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Animations */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div id="logo">tvtv updater</div>
+      <div id="status">Checking…</div>
+    </header>
+
+    <div id="versions">
+      <div class="version-card installed">
+        <div class="version-label">Installed</div>
+        <div class="version-number" id="installed-version">—</div>
+      </div>
+      <div class="version-card latest">
+        <div class="version-label">Latest</div>
+        <div class="version-number" id="latest-version">—</div>
+      </div>
+    </div>
+
+    <div id="update-banner">
+      <div class="banner-title" id="banner-title">Update available</div>
+      <div class="banner-text" id="banner-text">A new version is available.</div>
+      <div class="release-notes" id="release-notes" style="display:none;"></div>
+      <div class="btn-row">
+        <button class="btn" id="check-btn" onclick="checkForUpdates()">Check Again</button>
+        <button class="btn primary" id="update-btn" onclick="startUpdate()">Update Now</button>
+      </div>
+    </div>
+
+    <div id="progress-section">
+      <div class="progress-header">
+        <span id="progress-label">Updating…</span>
+        <span id="progress-percent">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-status" id="progress-status">Preparing…</div>
+    </div>
+
+    <div id="logs-section">
+      <div class="logs-header">Activity Log</div>
+      <div id="logs"></div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+
+    const installedVersionEl = $('installed-version');
+    const latestVersionEl = $('latest-version');
+    const updateBanner = $('update-banner');
+    const bannerTitle = $('banner-title');
+    const bannerText = $('banner-text');
+    const releaseNotes = $('release-notes');
+    const updateBtn = $('update-btn');
+    const checkBtn = $('check-btn');
+    const progressSection = $('progress-section');
+    const progressFill = $('progress-fill');
+    const progressPercent = $('progress-percent');
+    const progressLabel = $('progress-label');
+    const progressStatus = $('progress-status');
+    const logsEl = $('logs');
+    const statusEl = $('status');
+
+    let isUpdating = false;
+    let logs = [];
+
+    function addLog(msg, type = '') {
+      const time = new Date().toLocaleTimeString();
+      logs.unshift({ time, msg, type });
+      if (logs.length > 100) logs.pop();
+      renderLogs();
+    }
+
+    function renderLogs() {
+      logsEl.innerHTML = logs.map(l => 
+        `<div class="log-line ${l.type}">[${l.time}] ${escapeHtml(l.msg)}</div>`
+      ).join('');
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+    function setProgress(percent, label, status) {
+      progressFill.style.width = percent + '%';
+      progressPercent.textContent = percent + '%';
+      if (label) progressLabel.textContent = label;
+      if (status) progressStatus.textContent = status;
+    }
+
+    async function checkForUpdates() {
+      if (isUpdating) return;
+      setStatus('Checking…');
+      addLog('Checking for updates…');
+      
+      try {
+        const r = await fetch(`${API}/api/status`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        
+        installedVersionEl.textContent = data.installed_version || 'unknown';
+        latestVersionEl.textContent = data.latest_version || 'unknown';
+        
+        // Update card styling
+        installedVersionEl.parentElement.classList.remove('outdated');
+        latestVersionEl.parentElement.classList.remove('outdated');
+        
+        if (data.update_available) {
+          installedVersionEl.parentElement.classList.add('outdated');
+          bannerTitle.textContent = `Update available: ${data.latest_version}`;
+          bannerText.textContent = `Current version ${data.installed_version} → ${data.latest_version}`;
+          if (data.release_notes) {
+            releaseNotes.textContent = data.release_notes;
+            releaseNotes.style.display = 'block';
+          }
+          updateBanner.classList.add('visible', 'has-update');
+          updateBanner.classList.remove('error');
+          updateBtn.disabled = false;
+          setStatus('Update available');
+          addLog(`Update available: ${data.installed_version} → ${data.latest_version}`, 'success');
+        } else {
+          bannerTitle.textContent = 'Up to date';
+          bannerText.textContent = `You're running the latest version (${data.installed_version})`;
+          releaseNotes.style.display = 'none';
+          updateBanner.classList.add('visible');
+          updateBanner.classList.remove('has-update', 'error');
+          updateBtn.disabled = true;
+          setStatus('Up to date');
+          addLog('System is up to date', 'success');
+        }
+      } catch (e) {
+        setStatus('Error');
+        addLog('Check failed: ' + e.message, 'error');
+        bannerTitle.textContent = 'Connection error';
+        bannerText.textContent = 'Could not check for updates. Make sure the updater service is running.';
+        updateBanner.classList.add('visible', 'error');
+        updateBanner.classList.remove('has-update');
+        updateBtn.disabled = true;
+      }
+    }
+
+    async function startUpdate() {
+      if (isUpdating) return;
+      isUpdating = true;
+      
+      updateBtn.disabled = true;
+      checkBtn.disabled = true;
+      progressSection.classList.add('visible');
+      
+      addLog('Starting update…');
+      setStatus('Updating…');
+      setProgress(10, 'Downloading', 'Fetching update from GitHub…');
+      
+      try {
+        const r = await fetch(`${API}/api/update`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ reboot: true }),
+        });
+        
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        
+        const data = await r.json();
+        
+        if (data.success) {
+          setProgress(100, 'Complete', data.message);
+          addLog(data.message, 'success');
+          setStatus('Rebooting…');
+          
+          // Wait for reboot
+          setTimeout(() => {
+            addLog('System is rebooting…', 'warning');
+            setStatus('Rebooting…');
+            document.body.innerHTML = `
+              <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:20px;">
+                <div style="font-size:4rem;">↻</div>
+                <div style="font-size:1.2rem;color:var(--muted);">Updating tvtv…</div>
+                <div style="font-size:0.9rem;color:var(--muted);">The system will reboot shortly.</div>
+              </div>
+            `;
+          }, 2000);
+        } else {
+          throw new Error(data.message || 'Update failed');
+        }
+      } catch (e) {
+        setProgress(0, 'Failed', e.message);
+        addLog('Update failed: ' + e.message, 'error');
+        setStatus('Update failed');
+        updateBtn.disabled = false;
+        checkBtn.disabled = false;
+        isUpdating = false;
+      }
+    }
+
+    async function loadLogs() {
+      try {
+        const r = await fetch(`${API}/api/logs?lines=50`);
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.logs) {
+          logs = data.logs.reverse().map(line => {
+            let type = '';
+            if (line.includes('error') || line.includes('failed')) type = 'error';
+            else if (line.includes('success') || line.includes('updated')) type = 'success';
+            else if (line.includes('warning')) type = 'warning';
+            return {
+              time: line.split(']')[0].replace('[', '') || '',
+              msg: line,
+              type
+            };
+          });
+          renderLogs();
+        }
+      } catch (e) {
+        // Silently fail
+      }
+    }
+
+    // Init
+    addLog('Updater initialized');
+    checkForUpdates();
+    loadLogs();
+    
+    // Auto-refresh logs
+    setInterval(loadLogs, 5000);
+  })();
+  </script>
+</body>
+</html>

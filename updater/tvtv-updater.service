@@ -1,0 +1,17 @@
+[Unit]
+Description=tvtv Updater Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=htpc
+WorkingDirectory=/home/htpc/tvtv/updater
+ExecStart=/home/htpc/tvtv/updater/start.sh
+Restart=on-failure
+RestartSec=10
+Environment=TVTV_UPDATER_PORT=8001
+Environment=GITHUB_REPO=owner/tvtv-yt
+
+[Install]
+WantedBy=multi-user.target
