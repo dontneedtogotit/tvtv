@@ -253,18 +253,23 @@ ExecStart=-/sbin/agetty --autologin $HTPC_USER --noclear %I \$TERM
 Type=idle
 EOF
 
-# User .bash_profile executes tvtv-session
+# User .bash_profile & .profile executes tvtv-session
 cat > "/home/$HTPC_USER/.bash_profile" <<'EOF'
 # tvtv HTPC graphical session launcher on tty1
-if [ -z "$WAYLAND_DISPLAY" ] && [ -z "${DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  if [ -x /usr/local/bin/tvtv-session ]; then
-    exec /usr/local/bin/tvtv-session
-  elif [ -f /home/htpc/tvtv/scripts/tvtv-session.sh ]; then
-    exec bash /home/htpc/tvtv/scripts/tvtv-session.sh
-  fi
-fi
+case "$(tty 2>/dev/null)" in
+  *tty1)
+    if [ -z "$WAYLAND_DISPLAY" ] && [ -z "${DISPLAY:-}" ]; then
+      if [ -x /usr/local/bin/tvtv-session ]; then
+        exec /usr/local/bin/tvtv-session
+      elif [ -f /home/htpc/tvtv/scripts/tvtv-session.sh ]; then
+        exec bash /home/htpc/tvtv/scripts/tvtv-session.sh
+      fi
+    fi
+    ;;
+esac
 EOF
-chown "$HTPC_USER:$HTPC_USER" "/home/$HTPC_USER/.bash_profile" 2>/dev/null || true
+cp "/home/$HTPC_USER/.bash_profile" "/home/$HTPC_USER/.profile" 2>/dev/null || true
+chown "$HTPC_USER:$HTPC_USER" "/home/$HTPC_USER/.bash_profile" "/home/$HTPC_USER/.profile" 2>/dev/null || true
 
 # Ensure labwc config directory is created
 mkdir -p "/home/$HTPC_USER/.config/labwc"

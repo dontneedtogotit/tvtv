@@ -169,6 +169,23 @@ done
 echo "GRUB patch verified:"
 grep -i "ds=" "$EXTRACT_DIR/boot/grub/grub.cfg" || true
 
+# --- stage tvtv repo for embedding into ISO ------------------------------
+REPO_ROOT="$(cd "$ISO_DIR/.." && pwd)"
+STAGE_DIR="$WORK_DIR/tvtv_stage"
+rm -rf "$STAGE_DIR" 2>/dev/null || true
+mkdir -p "$STAGE_DIR"
+echo "Staging clean tvtv codebase for offline installer image ..."
+tar -C "$REPO_ROOT" \
+  --exclude='.git' \
+  --exclude='.venv' \
+  --exclude='iso/iso-work' \
+  --exclude='iso/iso-tools' \
+  --exclude='iso-output' \
+  --exclude='__pycache__' \
+  --exclude='*.pyc' \
+  --exclude='.pytest_cache' \
+  -cf - . | tar -C "$STAGE_DIR" -xf -
+
 # --- update the base ISO in place ----------------------------------------
 OUT_ISO="$OUTPUT_DIR/tvtv-installer.iso"
 echo "Building $OUT_ISO (in-place update of base ISO) ..."
@@ -190,11 +207,17 @@ XORRISO_ARGS=(
   -outdev "$OUT_ISO"
   -map "$EXTRACT_DIR/boot/grub/grub.cfg" /boot/grub/grub.cfg
   -map "$EXTRACT_DIR/boot/grub/loopback.cfg" /boot/grub/loopback.cfg
+  -map "$STAGE_DIR" /tvtv
 )
 if [ "$AUTOINSTALL_MODE" = "self-contained" ]; then
   XORRISO_ARGS+=(-map "$ISO_DIR/autoinstall/user-data" /autoinstall/user-data)
   XORRISO_ARGS+=(-map "$ISO_DIR/autoinstall/meta-data" /autoinstall/meta-data)
 fi
+# Note: The base ISO ships UEFI boot files under /EFI/boot/ and an El Torito
+# UEFI boot image. We preserve that layout intentionally.
+# Some UEFI firmware additionally requires /EFI/BOOT/BOOTX64.EFI; if your
+# target fails with "no bootfile found for uefi", extract the ISO and
+# create that fallback path before flashing.
 # Re-register the hybrid boot record (BIOS El Torito + appended UEFI ESP +
 # MBR) exactly as found in the base image. Without this, the in-place -map
 # update discards the El-Torito boot information and the output is
@@ -220,8 +243,8 @@ fi
 echo "Boot records intact: BIOS El Torito + UEFI (appended ESP) present."
 # Best-effort cleanup of the extract tree (may leave read-only remnants; not
 # a build failure -- just wastes ~500M in WORK_DIR).
-chmod -R u+w "$EXTRACT_DIR" 2>/dev/null || true
-rm -rf "$EXTRACT_DIR" 2>/dev/null || true
+chmod -R u+w "$EXTRACT_DIR" "$STAGE_DIR" 2>/dev/null || true
+rm -rf "$EXTRACT_DIR" "$STAGE_DIR" 2>/dev/null || true
 echo "Build complete; freed extract tree:"
 df -h "$WORK_DIR" | tail -1
 

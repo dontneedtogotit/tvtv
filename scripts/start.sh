@@ -10,14 +10,24 @@ BACKEND_DIR="$PROJECT_DIR/src/backend"
 VENV="$PROJECT_DIR/.venv"
 PORT="${TVTV_PORT:-8000}"
 
-if [ ! -d "$VENV" ]; then
-  echo "Creating venv…"
-  python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -r "$BACKEND_DIR/requirements.txt" -q
+# Try project venv first
+if [ -x "$VENV/bin/uvicorn" ]; then
+  UVICORN_CMD=("$VENV/bin/uvicorn")
+elif [ -d "$VENV" ] && [ -x "$VENV/bin/python" ]; then
+  UVICORN_CMD=("$VENV/bin/python" "-m" "uvicorn")
+elif command -v uvicorn >/dev/null 2>&1; then
+  UVICORN_CMD=("uvicorn")
+else
+  # Attempt venv creation if writable
+  if python3 -m venv "$VENV" 2>/dev/null && "$VENV/bin/pip" install -r "$BACKEND_DIR/requirements.txt" -q 2>/dev/null; then
+    UVICORN_CMD=("$VENV/bin/uvicorn")
+  else
+    UVICORN_CMD=("python3" "-m" "uvicorn")
+  fi
 fi
 
 cd "$PROJECT_DIR"
-exec "$VENV/bin/uvicorn" server:app \
+exec "${UVICORN_CMD[@]}" server:app \
   --app-dir "$BACKEND_DIR" \
   --host 0.0.0.0 \
   --port "$PORT" \

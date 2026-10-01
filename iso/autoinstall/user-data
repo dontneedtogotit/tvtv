@@ -71,6 +71,7 @@ autoinstall:
   - intel-media-va-driver-non-free
   - chromium-browser
   - chromium
+  - epiphany-browser
   - cec-utils
   - ir-keytable
   - ydotool
@@ -101,12 +102,15 @@ autoinstall:
   - curtin in-target --target=/target -- sh -c 'printf "KERNEL==\"uinput\", SUBSYSTEM==\"misc\", MODE=\"0660\", GROUP=\"uinput\", OPTIONS+=\"static_node=uinput\"\n" > /etc/udev/rules.d/80-uinput.rules'
   - curtin in-target --target=/target -- sh -c 'printf "KERNEL==\"cec[0-9]*\", SUBSYSTEM==\"cec\", MODE=\"0666\", GROUP=\"dialout\"\nKERNEL==\"ttyACM[0-9]*\", SUBSYSTEM==\"tty\", MODE=\"0666\", GROUP=\"dialout\"\nKERNEL==\"ttyUSB[0-9]*\", SUBSYSTEM==\"tty\", MODE=\"0666\", GROUP=\"dialout\", ATTRS{idVendor}==\"1a44\"\n" > /etc/udev/rules.d/99-cec-adapter.rules'
   - curtin in-target --target=/target -- sh -c 'printf "PERCENTAGE=50\nPRIORITY=100\n" > /etc/default/zramswap'
-  - sh -c 'if [ -d /home/htpc/tvtv ]; then cp -a /home/htpc/tvtv /target/home/htpc/tvtv; fi'
-  - curtin in-target --target=/target -- bash -c 'if [ ! -d /home/htpc/tvtv ]; then git clone --depth 1 https://github.com/dontneedtogotit/tvtv.git /home/htpc/tvtv; fi'
+  - sh -c 'mkdir -p /target/home/htpc/tvtv && (cp -a /cdrom/tvtv/. /target/home/htpc/tvtv/ 2>/dev/null || cp -a /home/htpc/tvtv/. /target/home/htpc/tvtv/ 2>/dev/null || true)'
+  - curtin in-target --target=/target -- bash -c 'if [ ! -f /home/htpc/tvtv/scripts/setup.sh ]; then git clone --depth 1 https://github.com/dontneedtogotit/tvtv.git /home/htpc/tvtv 2>/dev/null || true; fi'
   - curtin in-target --target=/target -- chown -R htpc:htpc /home/htpc/tvtv
   - curtin in-target --target=/target -- bash -c 'mkdir -p /home/htpc/.config/tvtv && echo IyB0dnR2IEhUUEMgT3BlcmF0aW5nIFN5c3RlbSBDb25maWd1cmF0aW9uCiMgR2VuZXJhdGVkIGJ5IHR2dHYgSW5zdGFsbGVyCgpleHBvcnQgVFZfSE9TVE5BTUU9InR2dHYtbGl2aW5ncm9vbSIKZXhwb3J0IFRWX1VTRVI9Imh0cGMiCmV4cG9ydCBXTFJfT1VUUFVUPSJIRE1JLUEtMSIKZXhwb3J0IFdMUl9NT0RFPSIxOTIweDEwODBANjAiCmV4cG9ydCBUVl9TQ0FMRT0iMTMiCmV4cG9ydCBUVl9GT05UX1NJWkU9IjEzIgpleHBvcnQgVFZfU0hFTEw9ImxhYndjIgpleHBvcnQgVFZfVEhFTUU9ImVzdHVhcnkiCmV4cG9ydCBUVl9BVURJTz0iaGRtaSIKZXhwb3J0IFRWX0FVRElPX0VOR0lORT0icGlwZXdpcmUiCmV4cG9ydCBUVl9OSUdIVF9NT0RFPSIxIgpleHBvcnQgVFZfQVVESU9fUEFTU1RIUk9VR0g9IjAiCmV4cG9ydCBUVl9DRUM9InllcyIKZXhwb3J0IFRWX0NFQ19XQUtFPSIxIgpleHBvcnQgVFZfQ0VDX0tFWVM9IjEiCmV4cG9ydCBUVl9XRUJfUkVNT1RFPSIxIgpleHBvcnQgVFZfV0VCX1JFTU9URV9QT1JUPSI4MDgwIgpleHBvcnQgVFZfQ0FNRVJBX0hVQj0iMSIKZXhwb3J0IFRWX1NFTEZfVVBEQVRFUj0iMSIKZXhwb3J0IFRWX1NUT1JBR0VfTEFZT1VUPSJkaXJlY3QiCmV4cG9ydCBUVl9aUkFNPSIxIgpleHBvcnQgVFZfQUlfQVNTSVNUQU5UPSIxIgpleHBvcnQgVFZfUFJFU0VUPSJjdXN0b20iCgojIE1QViBkZWZhdWx0cyBmb3IgdGhpcyBUVgpleHBvcnQgTVBWX1NDQUxFPSItLXZpZGVvLXNjYWxlPWJpbGluZWFyIgpleHBvcnQgTVBWX1ZPPSItLXZvPWdwdSIKZXhwb3J0IE1QVl9IV0RFQz0iLS1od2RlYz1hdXRvLXNhZmUiCmV4cG9ydCBLSU9TS19VUkw9Imh0dHA6Ly9sb2NhbGhvc3Q6ODAwMCIK
     | base64 -d > /home/htpc/.config/tvtv/tv.conf && chown -R htpc:htpc /home/htpc/.config/tvtv'
-  - curtin in-target --target=/target -- bash /home/htpc/tvtv/scripts/setup.sh
+  - curtin in-target --target=/target -- bash -c 'if [ -f /home/htpc/tvtv/scripts/setup.sh ]; then bash /home/htpc/tvtv/scripts/setup.sh || true; fi'
+  - curtin in-target --target=/target -- mkdir -p /etc/systemd/system/getty@tty1.service.d
+  - 'curtin in-target --target=/target -- sh -c ''printf "[Service]\nExecStart=\nExecStart=-/sbin/agetty --autologin htpc --noclear %%I \\$TERM\nType=idle\n" > /etc/systemd/system/getty@tty1.service.d/autologin.conf'''
+  - 'curtin in-target --target=/target -- sh -c ''printf "# tvtv HTPC graphical session launcher on tty1\ncase \"\$(tty 2>/dev/null)\" in *tty1) [ -z \"\$WAYLAND_DISPLAY\" ] && [ -z \"\${DISPLAY:-}\" ] && [ -x /usr/local/bin/tvtv-session ] && exec /usr/local/bin/tvtv-session ;; esac\n" > /home/htpc/.bash_profile && cp /home/htpc/.bash_profile /home/htpc/.profile && chown htpc:htpc /home/htpc/.bash_profile /home/htpc/.profile'''
   shutdown: reboot
 instance-id: tvtv-htpc-noble
 local-hostname: tvtv-livingroom

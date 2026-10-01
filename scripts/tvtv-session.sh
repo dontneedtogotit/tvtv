@@ -150,7 +150,7 @@ done
 
 # 6. Resolve best available browser for Kiosk
 BROWSER=""
-for b in chromium chromium-browser google-chrome-stable google-chrome brave-browser firefox; do
+for b in chromium chromium-browser google-chrome-stable google-chrome brave-browser epiphany-browser cog firefox; do
   if command -v "$b" >/dev/null 2>&1; then
     BROWSER="$b"
     break
@@ -163,24 +163,33 @@ KIOSK_TARGET="${KIOSK_URL:-http://localhost:8000/}"
 if [ -n "$BROWSER" ]; then
   echo "Launching Kiosk shell with $BROWSER -> $KIOSK_TARGET"
   while true; do
-    if [[ "$BROWSER" == *"firefox"* ]]; then
-      "$BROWSER" --kiosk "$KIOSK_TARGET"
-    else
-      "$BROWSER" \
-        --kiosk \
-        --noerrdialogs \
-        --disable-infobars \
-        --disable-features=Translate,InterestFeedContentSuggestions \
-        --check-for-update-interval=31536000 \
-        --disable-pinch \
-        --overscroll-history-navigation=0 \
-        --autoplay-policy=no-user-gesture-required \
-        --enable-features=VaapiVideoDecodeLinuxGL,VaapiVideoDecoder \
-        --ignore-gpu-blocklist \
-        --enable-zero-copy \
-        --ozone-platform=wayland \
-        "$KIOSK_TARGET"
-    fi
+    case "$BROWSER" in
+      *cog*)
+        cog --platform=wl --kiosk-mode "$KIOSK_TARGET"
+        ;;
+      *epiphany*)
+        epiphany-browser --application-mode --kiosk "$KIOSK_TARGET"
+        ;;
+      *firefox*)
+        "$BROWSER" --kiosk "$KIOSK_TARGET"
+        ;;
+      *)
+        "$BROWSER" \
+          --kiosk \
+          --noerrdialogs \
+          --disable-infobars \
+          --disable-features=Translate,InterestFeedContentSuggestions \
+          --check-for-update-interval=31536000 \
+          --disable-pinch \
+          --overscroll-history-navigation=0 \
+          --autoplay-policy=no-user-gesture-required \
+          --enable-features=VaapiVideoDecodeLinuxGL,VaapiVideoDecoder \
+          --ignore-gpu-blocklist \
+          --enable-zero-copy \
+          --ozone-platform=wayland \
+          "$KIOSK_TARGET"
+        ;;
+    esac
     echo "Browser exited, restarting in 2 seconds..."
     sleep 2
   done
@@ -196,7 +205,18 @@ if command -v labwc >/dev/null 2>&1; then
   exec labwc
 elif command -v cage >/dev/null 2>&1; then
   echo "Executing cage kiosk compositor fallback..."
-  exec cage -- chromium --kiosk --ozone-platform=wayland "$KIOSK_URL"
+  CAGE_BROWSER=""
+  for b in chromium chromium-browser google-chrome-stable epiphany-browser cog firefox; do
+    if command -v "$b" >/dev/null 2>&1; then
+      CAGE_BROWSER="$b"
+      break
+    fi
+  done
+  if [ -n "$CAGE_BROWSER" ]; then
+    exec cage -- "$CAGE_BROWSER" --kiosk --ozone-platform=wayland "$KIOSK_URL"
+  else
+    exec cage -- xdg-open "$KIOSK_URL"
+  fi
 elif command -v startx >/dev/null 2>&1 || command -v xinit >/dev/null 2>&1; then
   echo "Executing X11 fallback..."
   exec startx
