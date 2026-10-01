@@ -55,7 +55,7 @@ export function initFocusNav(root = document) {
     items[index].scrollIntoView({ block: 'nearest', inline: 'nearest' });
   };
 
-  // Jump focus by a "page" — skip over items on the same row.
+  // Jump focus by a "page" - skip over items on the same row.
   const page = (dir) => {
     const items = focusable();
     if (!items.length) return;
