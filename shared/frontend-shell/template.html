@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tvtv</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
+<style>
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 20px;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    user-select: none;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  #logo {
+    font-weight: 900;
+    color: var(--accent);
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+  #status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  main {
+    height: calc(100% - 72px);
+    overflow: auto;
+    padding: 18px 24px;
+  }
+  .focused {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div id="logo">tvtv</div>
+    <div id="status">Ready</div>
+  </header>
+  <main id="app"></main>
+  <script type="module">
+    import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
+    initFocusNav(document);
+  </script>
+</body>
+</html>

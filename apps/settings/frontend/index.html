@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Settings</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
+<style>
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 20px;
+    height: 100%;
+    margin: 0;
+    user-select: none;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  #logo { font-weight: 900; color: var(--accent); font-size: 1.4rem; cursor: pointer; }
+  #content { padding: 18px 24px; overflow-y: auto; height: calc(100% - 72px); }
+  .row { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-weight: 700; font-size: 0.95rem; }
+  .desc { font-size: 0.8rem; color: var(--muted); }
+  input[type="text"], select {
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 1rem;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  button {
+    align-self: flex-start;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 10px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button:focus {
+    outline: 3px solid var(--accent2);
+  }
+  .pin-badge {
+    display: inline-block;
+    background: var(--surface2);
+    border: 2px solid var(--accent2);
+    border-radius: var(--radius-md);
+    padding: 6px 16px;
+    font-family: "SF Mono", monospace;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--accent2);
+    margin-top: 6px;
+  }
+  #status { color: var(--muted); font-size: 0.95rem; margin-top: 12px; }
+</style>
+</head>
+<body>
+  <header>
+    <div id="logo">tvtv</div>
+    <div style="font-weight:800; font-size:1.2rem;">Settings</div>
+  </header>
+  <div id="content">
+    <div class="row">
+      <div class="field">
+        <label for="quality">Default Video Quality</label>
+        <div class="desc">Preferred resolution when playing YouTube or media streams.</div>
+        <select id="quality">
+          <option value="1080p">1080p Full HD (Recommended)</option>
+          <option value="720p">720p HD</option>
+          <option value="4k">4K Ultra HD (2160p)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sponsorblock">SponsorBlock Integration</label>
+        <div class="desc">Automatically skip sponsored segments and self-promos in YouTube videos.</div>
+        <select id="sponsorblock">
+          <option value="true">Enabled (Skip Sponsors)</option>
+          <option value="false">Disabled</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="security_mode">LAN Security & Remote Control Mode</label>
+        <div class="desc">Controls access policy for phones and devices connecting over home Wi-Fi.</div>
+        <select id="security_mode">
+          <option value="open">Open LAN (Trusted Home Wi-Fi - No PIN Required)</option>
+          <option value="pair_required">Device Pairing Required (4-Digit PIN)</option>
+          <option value="kiosk_only">Kiosk Only (Block External LAN Control)</option>
+        </select>
+      </div>
+
+      <div class="field" id="pin-container" style="display:none;">
+        <label>Active TV Pairing PIN</label>
+        <div class="desc">Enter this PIN on your phone or mobile remote to pair this TV box:</div>
+        <div><span class="pin-badge" id="pairing-pin">----</span></div>
+      </div>
+
+      <button id="save">Save Settings</button>
+      <div id="status"></div>
+    </div>
+  </div>
+  <script type="module">
+    import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
+    initFocusNav(document);
+    const API = '';
+    const status = document.getElementById('status');
+    const saveBtn = document.getElementById('save');
+    const secSelect = document.getElementById('security_mode');
+    const pinContainer = document.getElementById('pin-container');
+    const pinBadge = document.getElementById('pairing-pin');
+
+    async function load() {
+      try {
+        const r = await fetch(`${API}/settings`);
+        const data = await r.json();
+        document.getElementById('sponsorblock').value = String(data.sponsorblock);
+        document.getElementById('quality').value = data.default_quality || '1080p';
+        if (data.security_mode) secSelect.value = data.security_mode;
+
+        // Fetch auth status & PIN
+        const authRes = await fetch(`${API}/api/auth/status`).then(r => r.json()).catch(() => ({}));
+        if (authRes.active_pin) {
+          pinBadge.textContent = authRes.active_pin;
+          pinContainer.style.display = 'block';
+        }
+      } catch (e) {}
+    }
+
+    secSelect.addEventListener('change', () => {
+      if (secSelect.value === 'pair_required') {
+        pinContainer.style.display = 'block';
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const body = {
+        sponsorblock: document.getElementById('sponsorblock').value === 'true',
+        default_quality: document.getElementById('quality').value,
+        security_mode: secSelect.value,
+        tv_mode: '1080p@60',
+      };
+      try {
+        const r = await fetch(`${API}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        status.textContent = r.ok ? 'Settings saved successfully' : 'Save failed';
+      } catch (e) {
+        status.textContent = 'Save failed: ' + e.message;
+      }
+    });
+    load();
+  </script>
+</body>
+</html>

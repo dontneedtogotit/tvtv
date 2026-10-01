@@ -1,0 +1,13 @@
+{
+  "id": "installer",
+  "name": "tvtv Installer",
+  "version": "0.1.0",
+  "description": "Installer configuration frontend for tvtv OS.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["system.install", "network.configure"],
+  "categories": ["system"]
+}

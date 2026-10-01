@@ -1,0 +1,13 @@
+{
+  "id": "store",
+  "name": "App Store",
+  "version": "0.1.0",
+  "description": "Install, remove, and update apps and plugins.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["system.install", "plugins.manage"],
+  "categories": ["system"]
+}

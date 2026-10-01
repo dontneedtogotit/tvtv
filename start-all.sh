@@ -29,7 +29,7 @@ start_updater() {
 
 start_camera() {
   echo "Starting tvtv-camera-setup…"
-  cd "$SCRIPT_DIR/camera-setup"
+  cd "$SCRIPT_DIR/apps/camera-setup"
   bash start.sh > "$LOG_DIR/camera.log" 2>&1 &
   echo $! > "$PID_DIR/camera.pid"
   echo "  → PID: $!  Log: $LOG_DIR/camera.log"
@@ -110,8 +110,11 @@ case "${1:-all}" in
   status)
     status
     ;;
+  doctor)
+    bash "$SCRIPT_DIR/scripts/tvtv-doctor.sh"
+    ;;
   *)
-    echo "Usage: $0 [all|app|updater|camera|stop|status]"
+    echo "Usage: $0 [all|app|updater|camera|stop|status|doctor]"
     exit 1
     ;;
 esac

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>System Update</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { padding: 18px 24px; font-family: "Segoe UI", Arial, sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  #logo { font-weight: 900; color: var(--accent); font-size: 1.3rem; }
+  .card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; max-width: 720px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+  .card .v { font-size: 1.6rem; font-weight: 800; font-family: "SF Mono", monospace; }
+  .card p { color: var(--muted); font-size: 0.9rem; margin: 6px 0; }
+  #status { font-size: 1rem; color: var(--muted); margin-top: 12px; }
+  .btn-row { margin-top: 14px; display: flex; gap: 10px; }
+  button.action-btn {
+    background: var(--surface2);
+    color: var(--text);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-pill);
+    padding: 8px 18px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.action-btn:focus, button.action-btn:hover {
+    border-color: var(--accent);
+    outline: none;
+  }
+  button.action-btn.rollback {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div id="logo">tvtv</div>
+    <div style="font-weight:800;font-size:1.2rem">System Update</div>
+  </header>
+  <div class="card">
+    <h3>Installed</h3><div class="v" id="installed">…</div>
+  </div>
+  <div class="card">
+    <h3>Latest (Remote)</h3><div class="v" id="latest">…</div>
+    <p id="notes"></p>
+    <div class="btn-row" id="actions" style="display:none;"></div>
+  </div>
+  <div class="card" id="rollback-card" style="display:none;">
+    <h3>Previous Backup</h3>
+    <div class="v" id="prev-version" style="font-size:1.2rem; color:var(--muted);">…</div>
+    <p>A previous working version is saved on this appliance.</p>
+    <div class="btn-row">
+      <button class="action-btn rollback" id="btn-rollback">Rollback to Previous Version</button>
+    </div>
+  </div>
+  <div id="status">Checking for updates…</div>
+  <script type="module">
+    import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
+    initFocusNav(document);
+
+    async function doRollback() {
+      if (!confirm('Are you sure you want to rollback to the previous version?')) return;
+      document.getElementById('status').textContent = 'Rolling back…';
+      try {
+        const r = await fetch('/apps/system-update/rollback', { method: 'POST' });
+        const res = await r.json();
+        document.getElementById('status').textContent = res.message || 'Rollback finished.';
+        await load();
+      } catch (e) {
+        document.getElementById('status').textContent = 'Rollback failed: ' + e.message;
+      }
+    }
+
+    async function load() {
+      try {
+        const r = await fetch('/apps/system-update/status');
+        const d = await r.json();
+        document.getElementById('installed').textContent = d.installed_version || 'unknown';
+        document.getElementById('latest').textContent = d.latest_version || 'unknown';
+        document.getElementById('notes').textContent = (d.release_notes || '').slice(0, 400);
+        document.getElementById('status').textContent =
+          d.update_available ? 'Update available.' : (d.release_notes || 'No updates available.');
+
+        if (d.rollback_available && d.previous_version) {
+          document.getElementById('rollback-card').style.display = 'block';
+          document.getElementById('prev-version').textContent = d.previous_version;
+          const rbBtn = document.getElementById('btn-rollback');
+          if (rbBtn) rbBtn.onclick = doRollback;
+        } else {
+          document.getElementById('rollback-card').style.display = 'none';
+        }
+      } catch (e) {
+        document.getElementById('status').textContent = 'Update check failed';
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

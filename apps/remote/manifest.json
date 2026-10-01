@@ -1,0 +1,13 @@
+{
+  "id": "remote",
+  "name": "Remote",
+  "version": "0.1.0",
+  "description": "Phone web remote for navigation and playback.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["playback.control"],
+  "categories": ["utility"]
+}

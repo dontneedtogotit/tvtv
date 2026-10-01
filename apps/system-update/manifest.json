@@ -1,0 +1,13 @@
+{
+  "id": "system-update",
+  "name": "System Update",
+  "version": "0.1.0",
+  "description": "OS and app OTA updates.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["system.update"],
+  "categories": ["system"]
+}

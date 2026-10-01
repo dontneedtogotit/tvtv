@@ -17,8 +17,8 @@ if [ ! -d "$VENV" ]; then
 fi
 
 cd "$PROJECT_DIR"
-exec "$VENV/bin/uvicorn" backend.server:app \
-  --app-dir src \
+exec "$VENV/bin/uvicorn" server:app \
+  --app-dir "$BACKEND_DIR" \
   --host 0.0.0.0 \
   --port "$PORT" \
   --log-level info

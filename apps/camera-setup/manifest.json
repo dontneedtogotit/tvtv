@@ -1,0 +1,14 @@
+{
+  "id": "camera-setup",
+  "name": "Cameras",
+  "version": "0.1.0",
+  "description": "Discover, fingerprint, and set up IP cameras on the LAN.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/proxy.py"
+  },
+  "permissions": ["network.scan", "storage.read"],
+  "categories": ["utility"],
+  "icon": "📡"
+}

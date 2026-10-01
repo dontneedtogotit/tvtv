@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build / scratch
+iso/iso-work/
+iso/iso-tools/
+iso/rootfs/
+iso-output/
+iso/__pycache__/
+iso/extracted/
+*.bak
+
+# Runtime state
+var/
+logs/
+.pids/
+config/settings.json
+.version
+
+# Env / secrets
+.env
+.env.local
+
+# OS
+.DS_Store

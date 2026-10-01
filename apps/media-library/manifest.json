@@ -1,0 +1,13 @@
+{
+  "id": "media-library",
+  "name": "Media Library",
+  "version": "0.1.0",
+  "description": "Browse movies, shows, music, and photos.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["storage.read", "metadata.read"],
+  "categories": ["media"]
+}

@@ -10,16 +10,23 @@ WorkingDirectory=/home/htpc/tvtv
 ExecStart=/home/htpc/tvtv/scripts/start.sh
 Restart=on-failure
 RestartSec=5
-Environment=DISPLAY=:0
 Environment=TVTV_PORT=8000
 
-# Hardware acceleration for MPV
+# Hardware acceleration for MPV (VAAPI decode via render node)
 Environment=LIBVA_DRIVER_NAME=iHD
 DeviceAllow=/dev/dri/card0 rwm
 DeviceAllow=/dev/dri/renderD128 rwm
 
-# Power management — let systemd handle shutdown
-StopWhenUnneeded=no
+# ── Sandboxing & Resource Hardening (Phase 8) ────────────────────────────────
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/htpc/tvtv/var /home/htpc/tvtv/config /home/htpc/tvtv/logs /home/htpc/.cache /tmp /run
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+MemoryMax=4G
+LimitNOFILE=65535
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target

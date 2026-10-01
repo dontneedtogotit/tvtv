@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tvtv Plugin Manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "entry"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "entry": {
+      "type": "object",
+      "required": ["frontend", "backend"],
+      "properties": {
+        "frontend": { "type": "string" },
+        "backend": { "type": "string" }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["utility"]
+    },
+    "icon": { "type": "string" },
+    "homepage": { "type": "string" }
+  }
+}

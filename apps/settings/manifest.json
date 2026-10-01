@@ -1,0 +1,13 @@
+{
+  "id": "settings",
+  "name": "Settings",
+  "version": "0.1.0",
+  "description": "System preferences for tvtv.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["settings.write"],
+  "categories": ["system"]
+}

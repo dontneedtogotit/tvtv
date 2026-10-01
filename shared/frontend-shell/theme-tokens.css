@@ -1,0 +1,276 @@
+/* tvtv HTPC OS Design Tokens & Theme Engine — Single Source of Truth for 10-Foot UI */
+:root {
+  /* Default Theme: Estuary Cyan (LibreELEC inspired) */
+  --bg: #0b1320;
+  --bg-deep: #060a12;
+  --bg-gradient: radial-gradient(circle at 85% 15%, rgba(0, 210, 255, 0.12) 0%, rgba(11, 19, 32, 0.98) 70%);
+  --surface: #111c2e;
+  --surface-card: #16243b;
+  --surface-hover: #1e314f;
+  --surface-active: #243b5e;
+  --surface-glass: rgba(17, 28, 46, 0.75);
+  --border: #1e2f47;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-bright: #2d4566;
+  --accent: #00d2ff;
+  --accent2: #38bdf8;
+  --accent-soft: rgba(0, 210, 255, 0.15);
+  --accent-glow: rgba(0, 210, 255, 0.4);
+  --text: #f1f5f9;
+  --text-strong: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* Typography Scale for 10-Foot Living Room TV */
+  --font: "Segoe UI", "Noto Sans", -apple-system, BlinkMacSystemFont, Roboto, system-ui, sans-serif;
+  --fs-xs: 0.78rem;
+  --fs-sm: 0.88rem;
+  --fs-base: 1.05rem;      /* Scaled by font-size setting */
+  --fs-md: 1.25rem;
+  --fs-lg: 1.55rem;
+  --fs-xl: 2.1rem;
+  --fs-hero: 2.8rem;
+
+  /* Spacing Scale */
+  --gap-xs: 8px;
+  --gap-sm: 14px;
+  --gap: 24px;
+  --gap-lg: 36px;
+  --gap-xl: 48px;
+
+  /* Geometry & Radius */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  /* 10-Foot TV Focus & Interaction */
+  --focus-ring: 4px solid var(--accent);
+  --focus-glow: 0 0 26px var(--accent-glow), 0 0 0 1px #fff inset;
+  --focus-transform: translateY(-4px) scale(1.02);
+  --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  --lift: translateY(-4px) scale(1.02);
+
+  /* Layout Dimensions */
+  --header-h: 76px;
+  --rail-w: 260px;
+  --card-min: 320px;
+}
+
+/* ── 8 Living Room Color Themes ─────────────────────────────────────────────── */
+
+/* 1. Estuary Cyan (Default) */
+[data-theme="estuary"] {
+  --bg: #0b1320;
+  --bg-deep: #060a12;
+  --bg-gradient: radial-gradient(circle at 85% 15%, rgba(0, 210, 255, 0.12) 0%, rgba(11, 19, 32, 0.98) 70%);
+  --surface: #111c2e;
+  --surface-card: #16243b;
+  --surface-hover: #1e314f;
+  --surface-active: #243b5e;
+  --surface-glass: rgba(17, 28, 46, 0.75);
+  --border: #1e2f47;
+  --border-bright: #2d4566;
+  --accent: #00d2ff;
+  --accent2: #38bdf8;
+  --accent-soft: rgba(0, 210, 255, 0.15);
+  --accent-glow: rgba(0, 210, 255, 0.4);
+}
+
+/* 2. Midnight Sapphire */
+[data-theme="midnight"] {
+  --bg: #070b14;
+  --bg-deep: #03060a;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.14) 0%, rgba(7, 11, 20, 0.98) 70%);
+  --surface: #0e1626;
+  --surface-card: #131e33;
+  --surface-hover: #1a2947;
+  --surface-active: #21355c;
+  --surface-glass: rgba(14, 22, 38, 0.75);
+  --border: #1c2b45;
+  --border-bright: #2a3e63;
+  --accent: #38bdf8;
+  --accent2: #60a5fa;
+  --accent-soft: rgba(56, 189, 248, 0.16);
+  --accent-glow: rgba(56, 189, 248, 0.42);
+}
+
+/* 3. OLED Pitch Black */
+[data-theme="oled"] {
+  --bg: #000000;
+  --bg-deep: #000000;
+  --bg-gradient: none;
+  --surface: #0a0a0a;
+  --surface-card: #121212;
+  --surface-hover: #1e1e1e;
+  --surface-active: #2a2a2a;
+  --surface-glass: rgba(10, 10, 10, 0.85);
+  --border: #222222;
+  --border-bright: #3a3a3a;
+  --accent: #ffffff;
+  --accent2: #cccccc;
+  --accent-soft: rgba(255, 255, 255, 0.15);
+  --accent-glow: rgba(255, 255, 255, 0.4);
+}
+
+/* 4. Cyberpunk Neon */
+[data-theme="cyberpunk"] {
+  --bg: #10061e;
+  --bg-deep: #090212;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(255, 0, 127, 0.15) 0%, rgba(16, 6, 30, 0.98) 70%);
+  --surface: #1a0b30;
+  --surface-card: #23103f;
+  --surface-hover: #2f1754;
+  --surface-active: #3e1f6e;
+  --surface-glass: rgba(26, 11, 48, 0.75);
+  --border: #35195e;
+  --border-bright: #4d2688;
+  --accent: #ff007f;
+  --accent2: #00f3ff;
+  --accent-soft: rgba(255, 0, 127, 0.18);
+  --accent-glow: rgba(255, 0, 127, 0.45);
+}
+
+/* 5. Sunset Amber */
+[data-theme="sunset"] {
+  --bg: #14100c;
+  --bg-deep: #0b0906;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.13) 0%, rgba(20, 16, 12, 0.98) 70%);
+  --surface: #1f1812;
+  --surface-card: #2a2119;
+  --surface-hover: #382c21;
+  --surface-active: #47382a;
+  --surface-glass: rgba(31, 24, 18, 0.75);
+  --border: #3d3024;
+  --border-bright: #544332;
+  --accent: #f59e0b;
+  --accent2: #fbbf24;
+  --accent-soft: rgba(245, 158, 11, 0.16);
+  --accent-glow: rgba(245, 158, 11, 0.4);
+}
+
+/* 6. Nordic Emerald */
+[data-theme="emerald"] {
+  --bg: #061910;
+  --bg-deep: #030d08;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.14) 0%, rgba(6, 25, 16, 0.98) 70%);
+  --surface: #0c2619;
+  --surface-card: #123322;
+  --surface-hover: #19452f;
+  --surface-active: #20573c;
+  --surface-glass: rgba(12, 38, 25, 0.75);
+  --border: #1d4d35;
+  --border-bright: #296b49;
+  --accent: #10b981;
+  --accent2: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.16);
+  --accent-glow: rgba(16, 185, 129, 0.4);
+}
+
+/* 7. Retro Synthwave */
+[data-theme="synthwave"] {
+  --bg: #130924;
+  --bg-deep: #0a0414;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(192, 132, 252, 0.15) 0%, rgba(19, 9, 36, 0.98) 70%);
+  --surface: #1e1038;
+  --surface-card: #29164d;
+  --surface-hover: #371e66;
+  --surface-active: #472782;
+  --surface-glass: rgba(30, 16, 56, 0.75);
+  --border: #3b206e;
+  --border-bright: #522d99;
+  --accent: #c084fc;
+  --accent2: #f472b6;
+  --accent-soft: rgba(192, 132, 252, 0.18);
+  --accent-glow: rgba(192, 132, 252, 0.42);
+}
+
+/* 8. Crimson Cinema */
+[data-theme="crimson"] {
+  --bg: #0d0d0f;
+  --bg-deep: #070708;
+  --bg-gradient: radial-gradient(circle at 80% 20%, rgba(229, 9, 20, 0.14) 0%, rgba(13, 13, 15, 0.98) 70%);
+  --surface: #16161a;
+  --surface-card: #1f1f24;
+  --surface-hover: #2b2b33;
+  --surface-active: #383842;
+  --surface-glass: rgba(22, 22, 26, 0.75);
+  --border: #2c2c36;
+  --border-bright: #3f3f4d;
+  --accent: #e50914;
+  --accent2: #ff3838;
+  --accent-soft: rgba(229, 9, 20, 0.16);
+  --accent-glow: rgba(229, 9, 20, 0.4);
+}
+
+/* ── Base Reset & TV Ergonomics ─────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  background-image: var(--bg-gradient);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 20px; /* Base 20px for 10-foot TV reading */
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Consistent 10-Foot Focus Treatment */
+:focus { outline: none; }
+.focused, :focus-visible {
+  outline: var(--focus-ring) !important;
+  outline-offset: 3px !important;
+  box-shadow: var(--focus-glow) !important;
+  transform: var(--focus-transform) !important;
+  z-index: 20;
+}
+
+button, input, select, textarea, [tabindex] {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 12px 22px;
+  font-weight: 700;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+button:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  border-color: var(--accent);
+  color: #000;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+/* Custom TV Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }

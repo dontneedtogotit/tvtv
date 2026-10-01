@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>App Store</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { padding: 18px 24px; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-shrink: 0; }
+  #logo { font-weight: 900; color: var(--accent); font-size: 1.3rem; cursor: pointer; }
+  #note { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; flex-shrink: 0; }
+  #note.warn { color: var(--accent2); }
+  #grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; align-content: start; }
+  .app { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .app.off { opacity: 0.55; }
+  .app:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 24px var(--accent-soft); }
+  .app h3 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+  .app p { margin: 0; font-size: 0.9rem; color: var(--muted); flex: 1; }
+  .app .ver { font-size: 0.8rem; color: var(--muted-2); }
+  .badge { background: var(--accent-soft); color: var(--accent2); border-radius: var(--radius-pill); padding: 2px 10px; font-size: 0.8rem; font-weight: 700; }
+  .badge.off { background: #3a2020; color: #ff9a9a; }
+  .app .perms { font-size: 0.75rem; color: var(--muted-2); font-family: "SF Mono", monospace; }
+  button.toggle { margin-top: 4px; align-self: flex-start; background: var(--surface2); color: var(--text); border: 2px solid var(--border); border-radius: var(--radius-pill); padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+  button.toggle:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <div id="logo">tvtv</div>
+    <div style="font-weight:800;font-size:1.2rem">App Store</div>
+  </header>
+  <p id="note">Loading…</p>
+  <div id="grid"></div>
+  <script type="module">
+    import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
+    initFocusNav(document);
+    const grid = document.getElementById('grid');
+    const note = document.getElementById('note');
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    async function setDisabled(appId, disabled) {
+      const r = await fetch('/apps/store/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, disabled }),
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        note.textContent = body.detail || 'Could not change app state';
+        note.classList.add('warn');
+        return;
+      }
+      await load();
+    }
+
+    async function load() {
+      const r = await fetch('/apps/store/list');
+      const data = await r.json();
+      note.classList.remove('warn');
+      const broken = data.unreadable_manifests || [];
+      note.textContent = broken.length
+        ? `${broken.length} manifest(s) unreadable and skipped: ${broken.join(', ')}`
+        : (data.note || `${(data.apps || []).length} apps installed.`);
+      if (broken.length) note.classList.add('warn');
+
+      grid.innerHTML = '';
+      for (const a of (data.apps || [])) {
+        const el = document.createElement('div');
+        el.className = 'app' + (a.disabled ? ' off' : '');
+        el.tabIndex = 0;
+        const state = a.disabled
+          ? '<span class="badge off">disabled</span>'
+          : `<span class="badge">${a.built_in ? 'built-in' : 'installed'}</span>`;
+        el.innerHTML = `
+          <h3>${esc(a.name)} ${state}</h3>
+          <p>${esc(a.description)}</p>
+          <div class="ver">v${esc(a.version)} · ${esc((a.categories || []).join(', '))}</div>
+          <div class="perms">${esc((a.permissions || []).join(' · ') || 'no permissions declared')}</div>`;
+        if (!a.has_frontend) {
+          el.querySelector('.ver').textContent += ' · no frontend';
+        }
+        if (a.built_in) {
+          const btn = document.createElement('button');
+          btn.className = 'toggle';
+          btn.textContent = a.disabled ? 'Enable' : 'Disable';
+          btn.tabIndex = 0;
+          btn.addEventListener('click', (e) => { e.stopPropagation(); setDisabled(a.id, !a.disabled); });
+          el.appendChild(btn);
+        }
+        grid.appendChild(el);
+      }
+      if (!(data.apps || []).length) grid.innerHTML = '<p>No apps found.</p>';
+    }
+    load();
+  </script>
+</body>
+</html>

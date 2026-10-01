@@ -1,0 +1,13 @@
+{
+  "id": "file-manager",
+  "name": "File Manager",
+  "version": "0.1.0",
+  "description": "Browse recordings, downloads, and local media.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["storage.read", "storage.list"],
+  "categories": ["utility"]
+}

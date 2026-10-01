@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Now Playing</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --accent: #ff0033;
+    --text: #f0f0f0;
+    --muted: #888888;
+  }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 20px;
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    user-select: none;
+  }
+  #title { font-size: 1.4rem; font-weight: 700; }
+  #status { color: var(--muted); }
+  .pad {
+    width: 300px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  button {
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:active { border-color: var(--accent); background: #222; }
+</style>
+</head>
+<body>
+  <div id="title">Now Playing</div>
+  <div id="status">Waiting for playback...</div>
+  <div class="pad">
+    <div></div>
+    <button data-action="pause">Pause</button>
+    <div></div>
+    <button data-action="seek-10"><< 10s</button>
+    <button data-action="fullscreen">FS</button>
+    <button data-action="seek+10">10s >></button>
+    <div></div>
+    <button data-action="stop">Stop</button>
+    <div></div>
+  </div>
+  <script>
+    const API = ''; // relative to serving origin (works on LAN remote too)
+    const status = document.getElementById('status');
+    document.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          const r = await fetch(`${API}/api/control`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: btn.dataset.action })
+          });
+          const data = await r.json();
+          status.textContent = data.status || 'ok';
+        } catch (e) {
+          status.textContent = 'error';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

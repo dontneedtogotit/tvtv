@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>tvtv OS Appliance Installer</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
+<style>
+  :root {
+    --bg-base: #06090e;
+    --surface-dark: #0f1520;
+    --surface-card: #162032;
+    --surface-hover: #1e2c45;
+    --surface-active: #253757;
+    --border-subtle: #223147;
+    --border-bright: #354e70;
+    --accent-cyan: #00d2ff;
+    --accent-glow: rgba(0, 210, 255, 0.35);
+    --accent-coral: #ff2a54;
+    --accent-amber: #f59e0b;
+    --accent-emerald: #10b981;
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --fs-root: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: "Segoe UI", "Noto Sans", system-ui, sans-serif;
+    font-size: var(--fs-root);
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Focus styling for 10-foot remote / keyboard */
+  :focus { outline: none; }
+  .focused, :focus-visible {
+    outline: 4px solid var(--accent-cyan) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 24px var(--accent-glow), 0 0 0 1px #fff inset !important;
+    transform: translateY(-2px) scale(1.015);
+    z-index: 10;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Header */
+  header {
+    height: 76px;
+    background: linear-gradient(180deg, #111a29 0%, #0c121d 100%);
+    border-bottom: 2px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .brand-logo {
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-badge {
+    background: rgba(0, 210, 255, 0.12);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .brand-sub {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .hotkey-pill {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hotkey-pill kbd {
+    background: var(--border-bright);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 0.7rem;
+  }
+
+  /* Main Workspace */
+  .main-workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Left Navigation Rail (Tabs / Steps) */
+  .nav-rail {
+    width: 320px;
+    background: var(--surface-dark);
+    border-right: 2px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    gap: 10px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .nav-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .nav-tab-btn:hover {
+    background: var(--surface-card);
+    color: var(--text-primary);
+  }
+  .nav-tab-btn.active {
+    background: var(--surface-card);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: 0 4px 16px rgba(0, 210, 255, 0.12);
+  }
+  .nav-tab-icon {
+    font-size: 1.2rem;
+    width: 28px;
+    text-align: center;
+  }
+  .nav-tab-label { flex: 1; }
+  .nav-tab-num {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    background: var(--border-subtle);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* Content Pane */
+  .content-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 40px 100px 40px;
+    background: radial-gradient(circle at top right, rgba(0, 210, 255, 0.04) 0%, transparent 60%);
+  }
+
+  .section-container {
+    display: none;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .section-container.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-desc {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-top: 6px;
+  }
+
+  /* Presets Grid */
+  .presets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .preset-card {
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .preset-card:hover {
+    border-color: var(--border-bright);
+    background: var(--surface-hover);
+  }
+  .preset-card.selected {
+    border-color: var(--accent-cyan);
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.12) 0%, var(--surface-card) 100%);
+    box-shadow: 0 8px 24px rgba(0, 210, 255, 0.15);
+  }
+  .preset-badge {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: var(--accent-cyan);
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+  }
+  .preset-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .preset-icon {
+    font-size: 1.6rem;
+  }
+  .preset-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #fff;
+  }
+  .preset-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+  .preset-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+  }
+  .spec-chip {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  /* Cards Grid & Tile Selectors */
+  .tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .tile-card {
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tile-card:hover {
+    border-color: var(--border-bright);
+    background: var(--surface-hover);
+  }
+  .tile-card.selected {
+    border-color: var(--accent-cyan);
+    background: var(--surface-active);
+  }
+  .tile-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .tile-desc {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+  }
+
+  /* Form Fields */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    max-width: 800px;
+  }
+  .form-group label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .form-group label span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .input-control {
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #fff;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+  }
+  .input-control:hover { border-color: var(--border-bright); }
+  .input-control:focus { border-color: var(--accent-cyan); }
+
+  .two-col-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 800px;
+  }
+
+  /* Toggle Switch */
+  .toggle-row {
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 16px;
+    max-width: 800px;
+  }
+  .toggle-row:hover {
+    border-color: var(--border-bright);
+    background: var(--surface-hover);
+  }
+  .toggle-row.selected {
+    border-color: var(--accent-cyan);
+  }
+  .toggle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .toggle-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+  }
+  .toggle-desc {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+  .toggle-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    background: #1e293b;
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    transition: all 0.15s ease;
+  }
+  .toggle-row.active .toggle-pill {
+    background: var(--accent-cyan);
+    color: #000;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  /* Theme Swatches */
+  .themes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+    max-width: 900px;
+  }
+  .theme-tile {
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .theme-tile.selected {
+    border-color: var(--accent-cyan);
+    background: var(--surface-active);
+  }
+  .theme-preview-bar {
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Bottom Fixed Action Bar */
+  .footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 84px;
+    background: linear-gradient(0deg, #070a10 0%, rgba(11, 16, 26, 0.95) 100%);
+    border-top: 2px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    backdrop-filter: blur(12px);
+    z-index: 50;
+  }
+
+  .footer-status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+  }
+  .status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .btn {
+    padding: 14px 26px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+  }
+  .btn-secondary {
+    background: var(--surface-card);
+    border-color: var(--border-bright);
+    color: #fff;
+  }
+  .btn-secondary:hover {
+    background: var(--surface-hover);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0284c7 100%);
+    color: #000;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.1);
+  }
+  .btn-success {
+    background: linear-gradient(135deg, var(--accent-emerald) 0%, #059669 100%);
+    color: #fff;
+    border-color: var(--accent-emerald);
+  }
+
+  /* Modal / Code Drawer */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface-dark);
+    border: 2px solid var(--border-bright);
+    border-radius: 20px;
+    width: 90vw;
+    max-width: 1100px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  }
+  .modal-header {
+    padding: 20px 28px;
+    border-bottom: 2px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title { font-size: 1.3rem; font-weight: 800; color: #fff; }
+  .modal-content {
+    padding: 24px 28px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    background: #090e17;
+    color: #38bdf8;
+    white-space: pre-wrap;
+  }
+  .modal-actions {
+    padding: 16px 28px;
+    border-top: 2px solid var(--border-subtle);
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    background: var(--surface-dark);
+  }
+
+  /* Toast Notification */
+  .toast-container {
+    position: fixed;
+    top: 90px;
+    right: 32px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .toast {
+    background: var(--surface-card);
+    border: 2px solid var(--accent-cyan);
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    animation: toastSlide 0.25s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  @keyframes toastSlide {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">tvtv<span>OS</span></div>
+      <div class="brand-badge">Appliance Installer</div>
+      <div class="brand-sub">Ubuntu 24.04 Noble LTS &bull; 70"+ TV Edition</div>
+    </div>
+    <div class="header-actions">
+      <div class="hotkey-pill"><kbd>1-4</kbd> Presets</div>
+      <div class="hotkey-pill"><kbd>&uarr;&darr;&larr;&rarr;</kbd> D-Pad</div>
+      <div class="hotkey-pill"><kbd>Enter</kbd> Select</div>
+      <div class="hotkey-pill"><kbd>G</kbd> Generate</div>
+      <div class="hotkey-pill"><kbd>P</kbd> Preview</div>
+    </div>
+  </header>
+
+  <div class="main-workspace">
+    <!-- Left Navigation Rail -->
+    <nav class="nav-rail" id="nav-rail">
+      <button class="nav-tab-btn active" data-tab="presets">
+        <span class="nav-tab-icon">⚡</span>
+        <span class="nav-tab-label">Quick Presets</span>
+        <span class="nav-tab-num">1</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="identity">
+        <span class="nav-tab-icon">👤</span>
+        <span class="nav-tab-label">System & Identity</span>
+        <span class="nav-tab-num">2</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="display">
+        <span class="nav-tab-icon">📺</span>
+        <span class="nav-tab-label">Display & 70"+ TV</span>
+        <span class="nav-tab-num">3</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="audio">
+        <span class="nav-tab-icon">🔊</span>
+        <span class="nav-tab-label">Audio & Acoustics</span>
+        <span class="nav-tab-num">4</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="cec">
+        <span class="nav-tab-icon">🎮</span>
+        <span class="nav-tab-label">CEC & Remote Sync</span>
+        <span class="nav-tab-num">5</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="shell">
+        <span class="nav-tab-icon">🎨</span>
+        <span class="nav-tab-label">Shell & Theming</span>
+        <span class="nav-tab-num">6</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="storage">
+        <span class="nav-tab-icon">💾</span>
+        <span class="nav-tab-label">Storage & ZRAM</span>
+        <span class="nav-tab-num">7</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="network">
+        <span class="nav-tab-icon">📶</span>
+        <span class="nav-tab-label">Network & Wi-Fi</span>
+        <span class="nav-tab-num">8</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="apps">
+        <span class="nav-tab-icon">📦</span>
+        <span class="nav-tab-label">Apps & Surveillance</span>
+        <span class="nav-tab-num">9</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="deploy">
+        <span class="nav-tab-icon">🚀</span>
+        <span class="nav-tab-label">Bake & Deploy</span>
+        <span class="nav-tab-num">0</span>
+      </button>
+    </nav>
+
+    <!-- Content Workspace -->
+    <main class="content-pane" id="content-pane">
+      
+      <!-- TAB 1: PRESETS -->
+      <section class="section-container active" id="tab-presets">
+        <div class="section-header">
+          <h2 class="section-title">⚡ Instant TV Appliance Presets</h2>
+          <p class="section-desc">Select a fine-tuned configuration or customize each parameter across the sidebar tabs.</p>
+        </div>
+
+        <div class="presets-grid" id="presets-container">
+          <!-- Preset Cards injected by JS -->
+        </div>
+      </section>
+
+      <!-- TAB 2: SYSTEM & IDENTITY -->
+      <section class="section-container" id="tab-identity">
+        <div class="section-header">
+          <h2 class="section-title">👤 System & Appliance Identity</h2>
+          <p class="section-desc">Configure account credentials, hostname broadcast, timezone, and locale.</p>
+        </div>
+
+        <div class="two-col-form">
+          <div class="form-group">
+            <label for="input-hostname">Appliance Hostname <span>Broadcast on LAN</span></label>
+            <input type="text" id="input-hostname" class="input-control" value="tvtv" />
+          </div>
+          <div class="form-group">
+            <label for="input-username">Primary User <span>HTPC appliance account</span></label>
+            <input type="text" id="input-username" class="input-control" value="htpc" />
+          </div>
+        </div>
+
+        <div class="two-col-form">
+          <div class="form-group">
+            <label for="input-password">Password <span>Auto-hashed to SHA-512 crypt</span></label>
+            <input type="text" id="input-password" class="input-control" value="tvtv" />
+          </div>
+          <div class="form-group">
+            <label for="input-realname">Display Name</label>
+            <input type="text" id="input-realname" class="input-control" value="HTPC User" />
+          </div>
+        </div>
+
+        <div class="two-col-form">
+          <div class="form-group">
+            <label for="input-timezone">Timezone</label>
+            <select id="input-timezone" class="input-control">
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">America/New York (EST/EDT)</option>
+              <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+              <option value="America/Denver">America/Denver (MST/MDT)</option>
+              <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
+              <option value="Europe/London">Europe/London (GMT/BST)</option>
+              <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+              <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+              <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="input-keyboard">Keyboard Layout</label>
+            <select id="input-keyboard" class="input-control">
+              <option value="us">US English (QWERTY)</option>
+              <option value="uk">UK English</option>
+              <option value="de">German (QWERTZ)</option>
+              <option value="fr">French (AZERTY)</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-ssh">
+          <div class="toggle-info">
+            <div class="toggle-title">Enable OpenSSH Server</div>
+            <div class="toggle-desc">Permits remote administration, debugging, and terminal access over LAN.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+      </section>
+
+      <!-- TAB 3: DISPLAY & 70"+ TV -->
+      <section class="section-container" id="tab-display">
+        <div class="section-header">
+          <h2 class="section-title">📺 70"+ TV Display & Scaling</h2>
+          <p class="section-desc">Designed for Samsung, LG, and Sony large-screen TVs with HDMI 1.4a / 2.0+ video modes.</p>
+        </div>
+
+        <label style="font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: block;">Display Video Mode Preset</label>
+        <div class="tiles-grid" id="display-tiles-container">
+          <!-- Injected via JS -->
+        </div>
+
+        <div class="two-col-form">
+          <div class="form-group">
+            <label for="input-wlr-output">Wayland DRM Output Connector</label>
+            <input type="text" id="input-wlr-output" class="input-control" value="HDMI-A-1" />
+          </div>
+          <div class="form-group">
+            <label for="input-ui-scale">TV Base Font & UI Scale (10-Foot UI)</label>
+            <select id="input-ui-scale" class="input-control">
+              <option value="10">10pt — Bigscreen Native / Compact</option>
+              <option value="12">12pt — Standard 50"-55" TV</option>
+              <option value="13" selected>13pt — 65"-70" Living Room TV (Recommended)</option>
+              <option value="16">16pt — 75"-85" Large Screen</option>
+              <option value="20">20pt — 85"+ Stadium / Extra Distance</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: AUDIO & ACOUSTICS -->
+      <section class="section-container" id="tab-audio">
+        <div class="section-header">
+          <h2 class="section-title">🔊 Audio System & Night Mode</h2>
+          <p class="section-desc">PipeWire low-latency audio, dynamic range compression for quiet late-night movies, and HDMI pinning.</p>
+        </div>
+
+        <div class="toggle-row active" id="toggle-night-mode">
+          <div class="toggle-info">
+            <div class="toggle-title">PipeWire Night Mode & Voice Dialogue EQ Boost</div>
+            <div class="toggle-desc">Dynamic range compression + 1–4 kHz dialogue band boost so whispered conversations are clear while loud explosions stay contained.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <label style="font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: block;">Primary Audio Output Device</label>
+        <div class="tiles-grid" id="audio-tiles-container">
+          <div class="tile-card selected" data-audio="hdmi">
+            <div class="tile-title">HDMI Audio (Digital) <span>📺</span></div>
+            <div class="tile-desc">Direct digital audio to TV speakers, Soundbar, or AV Receiver over HDMI cable.</div>
+          </div>
+          <div class="tile-card" data-audio="analog">
+            <div class="tile-title">3.5mm Analog Audio <span>🎧</span></div>
+            <div class="tile-desc">Headphone jack or external powered analog speakers.</div>
+          </div>
+          <div class="tile-card" data-audio="both">
+            <div class="tile-title">Simultaneous Dual Output <span>🔀</span></div>
+            <div class="tile-desc">Mirror sound to both HDMI digital output and 3.5mm analog jack simultaneously.</div>
+          </div>
+          <div class="tile-card" data-audio="spdif">
+            <div class="tile-title">Optical / SPDIF <span>✨</span></div>
+            <div class="tile-desc">Toslink optical digital output for legacy surround sound amplifiers.</div>
+          </div>
+        </div>
+
+        <div class="toggle-row" id="toggle-passthrough">
+          <div class="toggle-info">
+            <div class="toggle-title">Bitstream Passthrough (Dolby Digital / DTS)</div>
+            <div class="toggle-desc">Send raw bitstream audio directly to external AV Receivers for hardware surround decoding.</div>
+          </div>
+          <div class="toggle-pill">DISABLED</div>
+        </div>
+      </section>
+
+      <!-- TAB 5: CEC & REMOTE SYNC -->
+      <section class="section-container" id="tab-cec">
+        <div class="section-header">
+          <h2 class="section-title">🎮 HDMI-CEC Remote Control & Phone Remote</h2>
+          <p class="section-desc">Control the entire HTPC using your existing TV remote (Samsung Anynet+, LG SimpLink, Sony BRAVIA Sync).</p>
+        </div>
+
+        <div class="toggle-row active" id="toggle-cec">
+          <div class="toggle-info">
+            <div class="toggle-title">HDMI-CEC Integration (Anynet+ / Remote Control)</div>
+            <div class="toggle-desc">Enables kernel /dev/cec* and Pulse-Eight USB adapters. Arrow keys, OK, Back, and Media keys navigate the HTPC.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-cec-wake">
+          <div class="toggle-info">
+            <div class="toggle-title">Auto TV Power-On & HDMI Source Switch on Boot</div>
+            <div class="toggle-desc">Sends CEC 'on 0' and 'as' active source commands so turning on the NUC automatically wakes the TV and switches to HDMI1.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-web-remote">
+          <div class="toggle-info">
+            <div class="toggle-title">Mobile Phone Web Remote (Port 8080)</div>
+            <div class="toggle-desc">Access http://&lt;tv-ip&gt;:8080 from any smartphone. Type search terms using your phone keyboard directly into YouTube!</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+      </section>
+
+      <!-- TAB 6: SHELL & THEMING -->
+      <section class="section-container" id="tab-shell">
+        <div class="section-header">
+          <h2 class="section-title">🎨 Desktop Shell & 10-Foot Themes</h2>
+          <p class="section-desc">Choose your default user environment and custom LibreELEC / Kodi-inspired color palettes.</p>
+        </div>
+
+        <label style="font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: block;">Default Graphical Shell</label>
+        <div class="tiles-grid" id="shell-tiles-container">
+          <!-- Injected via JS -->
+        </div>
+
+        <label style="font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: block;">Living-Room Theme Color Palette</label>
+        <div class="themes-grid" id="theme-tiles-container">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- TAB 7: STORAGE & ZRAM -->
+      <section class="section-container" id="tab-storage">
+        <div class="section-header">
+          <h2 class="section-title">💾 Storage Layout & ZRAM Swap</h2>
+          <p class="section-desc">Fast disk partitioning and compressed in-memory swap for maximum SSD speed and durability.</p>
+        </div>
+
+        <label style="font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: block;">Storage Partitioning Scheme</label>
+        <div class="tiles-grid" id="storage-tiles-container">
+          <div class="tile-card selected" data-storage="direct">
+            <div class="tile-title">Direct ext4 (Appliance Fast Mode) <span>⚡</span></div>
+            <div class="tile-desc">Direct root partition with maximum available disk space for media recordings and cache.</div>
+          </div>
+          <div class="tile-card" data-storage="lvm">
+            <div class="tile-title">LVM + ext4 (Logical Volumes) <span>📦</span></div>
+            <div class="tile-desc">Flexible volume sizing and snapshot capabilities.</div>
+          </div>
+          <div class="tile-card" data-storage="zfs">
+            <div class="tile-title">ZFS Storage Pool <span>🛡️</span></div>
+            <div class="tile-desc">Enterprise checksum integrity, compression, and copy-on-write snapshots.</div>
+          </div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-zram">
+          <div class="toggle-info">
+            <div class="toggle-title">ZRAM Compressed In-Memory Swap</div>
+            <div class="toggle-desc">Allocates high-speed compressed memory swap, completely eliminating SSD write endurance wear and page-thrashing.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="form-group" style="margin-top: 16px;">
+          <label>Detected Physical Drives</label>
+          <div id="disks-list" style="color: var(--text-secondary); font-size: 0.88rem; background: var(--surface-card); padding: 14px 18px; border-radius: 12px; border: 1px solid var(--border-subtle);">
+            Scanning local block devices...
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: NETWORK & WI-FI -->
+      <section class="section-container" id="tab-network">
+        <div class="section-header">
+          <h2 class="section-title">📶 Network & Wi-Fi Configuration</h2>
+          <p class="section-desc">Ethernet DHCP automatic discovery and optional pre-configured Wi-Fi.</p>
+        </div>
+
+        <div class="two-col-form">
+          <div class="form-group">
+            <label for="input-wifi-ssid">Wi-Fi Network Name (SSID) <span>Optional</span></label>
+            <input type="text" id="input-wifi-ssid" class="input-control" placeholder="Leave blank for Ethernet only" />
+          </div>
+          <div class="form-group">
+            <label for="input-wifi-password">Wi-Fi Password (WPA2/WPA3)</label>
+            <input type="password" id="input-wifi-password" class="input-control" placeholder="Password" />
+          </div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-samba">
+          <div class="toggle-info">
+            <div class="toggle-title">Samba (SMB) Windows Network Share</div>
+            <div class="toggle-desc">Share ~/media folder over local home network for easy file transfers from laptops and PCs.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+      </section>
+
+      <!-- TAB 9: APPS & SURVEILLANCE -->
+      <section class="section-container" id="tab-apps">
+        <div class="section-header">
+          <h2 class="section-title">📦 Pre-Installed Apps & Surveillance Hub</h2>
+          <p class="section-desc">Complete HTPC OS appliance software stack.</p>
+        </div>
+
+        <div class="toggle-row active" id="toggle-app-yt">
+          <div class="toggle-info">
+            <div class="toggle-title">tvtv YouTube Engine & 10-Foot Dashboard</div>
+            <div class="toggle-desc">FastAPI + yt-dlp + MPV hardware VA-API acceleration + SponsorBlock integration.</div>
+          </div>
+          <div class="toggle-pill">CORE</div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-app-cameras">
+          <div class="toggle-info">
+            <div class="toggle-title">Camera Setup & NVR Surveillance Hub</div>
+            <div class="toggle-desc">Live RTSP streams, ONVIF discovery, motion detection, and popup alerts on TV.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-app-updater">
+          <div class="toggle-info">
+            <div class="toggle-title">Self-Updater Service (OTA Updates)</div>
+            <div class="toggle-desc">One-click web updater on port 8001 with automatic backup and rollback.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="toggle-row active" id="toggle-app-ai">
+          <div class="toggle-info">
+            <div class="toggle-title">✨ Agentic AI Assistant (Kilo Gateway Free Models)</div>
+            <div class="toggle-desc">Natural-language TV control via free Kilo AI models — rotates between kilo-auto/free, dots-3-note, space-bunny, step-3.7-flash. Requires a free Kilo API key from kilo.ai.</div>
+          </div>
+          <div class="toggle-pill">ENABLED</div>
+        </div>
+
+        <div class="form-group">
+          <label for="input-kilo-key">Kilo API Key <span>Get a free key at kilo.ai — enables AI assistant on the TV</span></label>
+          <input type="password" id="input-kilo-key" class="input-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5..." />
+        </div>
+      </section>
+
+      <!-- TAB 10: BAKE & DEPLOY -->
+      <section class="section-container" id="tab-deploy">
+        <div class="section-header">
+          <h2 class="section-title">🚀 Review, Bake ISO & Create USB</h2>
+          <p class="section-desc">Generate your custom autoinstall config or bake a bootable unattended ISO.</p>
+        </div>
+
+        <div style="background: var(--surface-card); border: 2px solid var(--border-subtle); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+          <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 12px;">Appliance Deployment Summary</h3>
+          <div id="deploy-summary" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
+            <!-- Summary injected by JS -->
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <button class="btn btn-primary" id="btn-generate-main">⚡ Generate Autoinstall Config (user-data)</button>
+          <button class="btn btn-secondary" id="btn-preview-main">👁️ Preview Cloud-Config YAML</button>
+          <button class="btn btn-secondary" id="btn-bake-main">💿 Bake Bootable Remastered ISO</button>
+        </div>
+
+        <div id="iso-progress-box" style="display: none; margin-top: 24px; background: #0c121d; border: 1px solid var(--border-bright); border-radius: 12px; padding: 18px;">
+          <div style="font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px;" id="iso-progress-title">Building ISO...</div>
+          <div style="font-size: 0.85rem; color: #94a3b8; font-family: monospace;" id="iso-progress-log"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer Actions -->
+  <footer class="footer-bar">
+    <div class="footer-status">
+      <div class="status-indicator"></div>
+      <span id="footer-status-text">Preset: 70"+ Living Room TV &bull; Safe 1080p@60 &bull; Bigscreen Estuary</span>
+    </div>
+    <div class="footer-actions">
+      <button class="btn btn-secondary" id="btn-preview">Preview YAML</button>
+      <button class="btn btn-primary" id="btn-generate">⚡ Generate Config</button>
+    </div>
+  </footer>
+</div>
+
+<!-- Modal: Code / YAML Viewer -->
+<div class="modal-overlay" id="modal-yaml">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Cloud-Config Autoinstall Preview (user-data)</div>
+      <button class="btn btn-secondary" id="modal-close" style="padding: 6px 14px; font-size: 0.8rem;">Close [ESC]</button>
+    </div>
+    <pre class="modal-content" id="modal-yaml-text"></pre>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btn-copy-yaml">📋 Copy YAML</button>
+      <button class="btn btn-primary" id="btn-save-from-modal">⚡ Apply & Save to ISO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script type="module">
+  import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
+
+  // State
+  let state = {
+    preset: 'livingroom',
+    hostname: 'tvtv',
+    username: 'htpc',
+    password: 'tvtv',
+    realname: 'HTPC User',
+    timezone: 'UTC',
+    keyboard: 'us',
+    locale: 'en_US.UTF-8',
+    display: '1080p@60',
+    custom_display: '',
+    wlr_output: 'HDMI-A-1',
+    ui_scale: 13,
+    shell: 'bigscreen',
+    theme: 'estuary',
+    audio: 'hdmi',
+    audio_engine: 'pipewire',
+    night_mode: true,
+    audio_passthrough: false,
+    cec: 'yes',
+    cec_wake: true,
+    cec_keys: true,
+    web_remote: true,
+    web_remote_port: 8080,
+    camera_hub: true,
+    self_updater: true,
+    samba_share: true,
+    ssh_server: true,
+    ai_assistant: true,
+    kilo_api_key: '',
+    storage: 'direct',
+    target_disk: 'auto',
+    zram_swap: true,
+    wifi_ssid: '',
+    wifi_password: '',
+  };
+
+  let configData = null;
+
+  function showToast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span>${type === 'success' ? '✓' : 'ℹ️'}</span> ${msg}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  function updateFooterStatus() {
+    const text = `Preset: ${state.preset.toUpperCase()} • ${state.display} • Shell: ${state.shell} • Theme: ${state.theme}`;
+    document.getElementById('footer-status-text').textContent = text;
+  }
+
+  function updateSummary() {
+    const el = document.getElementById('deploy-summary');
+    if (!el) return;
+    el.innerHTML = `
+      <div><strong>Hostname:</strong> ${state.hostname}</div>
+      <div><strong>User:</strong> ${state.username} (passwordless sudo)</div>
+      <div><strong>Display Mode:</strong> ${state.display} (${state.wlr_output})</div>
+      <div><strong>10-Foot UI Scale:</strong> ${state.ui_scale}pt base font</div>
+      <div><strong>Session Shell:</strong> ${state.shell}</div>
+      <div><strong>Theme Palette:</strong> ${state.theme}</div>
+      <div><strong>Audio Subsystem:</strong> ${state.audio.toUpperCase()} (${state.night_mode ? 'Night Mode Dialogue Boost' : 'Standard'})</div>
+      <div><strong>HDMI-CEC Sync:</strong> ${state.cec === 'yes' ? 'Auto-Wake + Remote Mapping' : 'Disabled'}</div>
+      <div><strong>Storage Layout:</strong> ${state.storage.toUpperCase()} + ZRAM Swap</div>
+      <div><strong>Installed Services:</strong> YouTube, Cameras, Web Remote (8080), Updater (8001)</div>
+    `;
+  }
+
+  // Load config & initialize UI
+  async function init() {
+    try {
+      const r = await fetch('/apps/installer/config');
+      configData = await r.json();
+      renderPresets(configData.presets);
+      renderDisplays(configData.displays);
+      renderShells(configData.shells);
+      renderThemes(configData.themes);
+    } catch (e) {
+      console.warn('Failed to load dynamic config:', e);
+    }
+
+    // Load Disks
+    try {
+      const dr = await fetch('/apps/installer/disks');
+      const diskData = await dr.json();
+      if (diskData && diskData.disks) {
+        const diskList = document.getElementById('disks-list');
+        diskList.innerHTML = diskData.disks.map(d => `
+          <div style="padding: 4px 0;"><strong>${d.device}</strong> — ${d.size} (${d.model}, ${d.transport.toUpperCase()})</div>
+        `).join('');
+      }
+    } catch (e) {}
+
+    setupEvents();
+    updateFooterStatus();
+    updateSummary();
+
+    initFocusNav(document);
+  }
+
+  function renderPresets(presets) {
+    const container = document.getElementById('presets-container');
+    if (!presets || !container) return;
+    container.innerHTML = presets.map((p, idx) => `
+      <div class="preset-card ${idx === 0 ? 'selected' : ''}" data-preset="${p.id}" tabindex="0">
+        ${idx === 0 ? '<div class="preset-badge">Recommended</div>' : ''}
+        <div class="preset-header">
+          <div class="preset-icon">${p.id === 'livingroom' ? '📺' : p.id === 'theater-4k' ? '🎬' : p.id === 'kiosk' ? '⚡' : '🛡️'}</div>
+          <div class="preset-title">${p.name}</div>
+        </div>
+        <div class="preset-desc">${p.description}</div>
+        <div class="preset-specs">
+          <span class="spec-chip">🖥️ ${p.display}</span>
+          <span class="spec-chip">🎨 ${p.theme}</span>
+          <span class="spec-chip">🔊 ${p.night_mode ? 'Night Mode EQ' : 'Direct Audio'}</span>
+          <span class="spec-chip">🎮 CEC Sync</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderDisplays(displays) {
+    const container = document.getElementById('display-tiles-container');
+    if (!displays || !container) return;
+    container.innerHTML = displays.map(d => `
+      <div class="tile-card ${d.id === state.display ? 'selected' : ''}" data-display="${d.id}" tabindex="0">
+        <div class="tile-title">${d.name}</div>
+        <div class="tile-desc">${d.mode}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderShells(shells) {
+    const container = document.getElementById('shell-tiles-container');
+    if (!shells || !container) return;
+    container.innerHTML = shells.map(s => `
+      <div class="tile-card ${s.id === state.shell ? 'selected' : ''}" data-shell="${s.id}" tabindex="0">
+        <div class="tile-title">${s.name}</div>
+        <div class="tile-desc">${s.desc}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderThemes(themes) {
+    const container = document.getElementById('theme-tiles-container');
+    if (!themes || !container) return;
+    container.innerHTML = themes.map(t => `
+      <div class="theme-tile ${t.id === state.theme ? 'selected' : ''}" data-theme="${t.id}" tabindex="0">
+        <div class="theme-preview-bar" style="background: ${t.bg}; color: ${t.color}; border-left: 5px solid ${t.color};">
+          ${t.name}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function applyPreset(presetId) {
+    if (!configData || !configData.presets) return;
+    const p = configData.presets.find(x => x.id === presetId);
+    if (!p) return;
+
+    state.preset = p.id;
+    if (p.display) state.display = p.display;
+    if (p.ui_scale) state.ui_scale = p.ui_scale;
+    if (p.shell) state.shell = p.shell;
+    if (p.theme) state.theme = p.theme;
+    if (p.audio) state.audio = p.audio;
+    if (p.night_mode !== undefined) state.night_mode = p.night_mode;
+    if (p.audio_passthrough !== undefined) state.audio_passthrough = p.audio_passthrough;
+    if (p.cec) state.cec = p.cec;
+    if (p.web_remote !== undefined) state.web_remote = p.web_remote;
+    if (p.camera_hub !== undefined) state.camera_hub = p.camera_hub;
+    if (p.self_updater !== undefined) state.self_updater = p.self_updater;
+    if (p.storage) state.storage = p.storage;
+    if (p.zram_swap !== undefined) state.zram_swap = p.zram_swap;
+
+    // Refresh UI selections
+    document.querySelectorAll('.preset-card').forEach(el => {
+      el.classList.toggle('selected', el.dataset.preset === presetId);
+    });
+    document.querySelectorAll('[data-display]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.display === state.display);
+    });
+    document.querySelectorAll('[data-shell]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.shell === state.shell);
+    });
+    document.querySelectorAll('[data-theme]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.theme === state.theme);
+    });
+    document.querySelectorAll('[data-audio]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.audio === state.audio);
+    });
+    document.querySelectorAll('[data-storage]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.storage === state.storage);
+    });
+
+    const scaleSelect = document.getElementById('input-ui-scale');
+    if (scaleSelect) scaleSelect.value = String(state.ui_scale);
+
+    updateToggle('toggle-night-mode', state.night_mode);
+    updateToggle('toggle-passthrough', state.audio_passthrough);
+    updateToggle('toggle-cec', state.cec === 'yes');
+    updateToggle('toggle-web-remote', state.web_remote);
+    updateToggle('toggle-zram', state.zram_swap);
+    updateToggle('toggle-app-cameras', state.camera_hub);
+    updateToggle('toggle-app-updater', state.self_updater);
+
+    updateFooterStatus();
+    updateSummary();
+    showToast(`Applied preset: ${p.name}`, 'success');
+  }
+
+  function updateToggle(id, active) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('active', !!active);
+    const pill = el.querySelector('.toggle-pill');
+    if (pill) {
+      pill.textContent = active ? 'ENABLED' : 'DISABLED';
+    }
+  }
+
+  function setupEvents() {
+    // Nav tabs
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.section-container').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        const target = document.getElementById('tab-' + btn.dataset.tab);
+        if (target) target.classList.add('active');
+      });
+    });
+
+    // Preset clicks
+    document.getElementById('presets-container')?.addEventListener('click', e => {
+      const card = e.target.closest('.preset-card');
+      if (card && card.dataset.preset) {
+        applyPreset(card.dataset.preset);
+      }
+    });
+
+    // Display mode clicks
+    document.getElementById('display-tiles-container')?.addEventListener('click', e => {
+      const card = e.target.closest('[data-display]');
+      if (card) {
+        document.querySelectorAll('[data-display]').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.display = card.dataset.display;
+        state.preset = 'custom';
+        updateFooterStatus();
+        updateSummary();
+      }
+    });
+
+    // Audio clicks
+    document.getElementById('audio-tiles-container')?.addEventListener('click', e => {
+      const card = e.target.closest('[data-audio]');
+      if (card) {
+        document.querySelectorAll('[data-audio]').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.audio = card.dataset.audio;
+        state.preset = 'custom';
+        updateFooterStatus();
+        updateSummary();
+      }
+    });
+
+    // Shell clicks
+    document.getElementById('shell-tiles-container')?.addEventListener('click', e => {
+      const card = e.target.closest('[data-shell]');
+      if (card) {
+        document.querySelectorAll('[data-shell]').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.shell = card.dataset.shell;
+        state.preset = 'custom';
+        updateFooterStatus();
+        updateSummary();
+      }
+    });
+
+    // Theme clicks
+    document.getElementById('theme-tiles-container')?.addEventListener('click', e => {
+      const card = e.target.closest('[data-theme]');
+      if (card) {
+        document.querySelectorAll('[data-theme]').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.theme = card.dataset.theme;
+        state.preset = 'custom';
+        updateFooterStatus();
+        updateSummary();
+      }
+    });
+
+    // Storage clicks
+    document.getElementById('storage-tiles-container')?.addEventListener('click', e => {
+      const card = e.target.closest('[data-storage]');
+      if (card) {
+        document.querySelectorAll('[data-storage]').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.storage = card.dataset.storage;
+        state.preset = 'custom';
+        updateFooterStatus();
+        updateSummary();
+      }
+    });
+
+    // Toggles
+    const toggleBindings = [
+      { id: 'toggle-ssh', key: 'ssh_server' },
+      { id: 'toggle-night-mode', key: 'night_mode' },
+      { id: 'toggle-passthrough', key: 'audio_passthrough' },
+      { id: 'toggle-cec', key: 'cec', map: v => v ? 'yes' : 'no' },
+      { id: 'toggle-cec-wake', key: 'cec_wake' },
+      { id: 'toggle-web-remote', key: 'web_remote' },
+      { id: 'toggle-zram', key: 'zram_swap' },
+      { id: 'toggle-samba', key: 'samba_share' },
+      { id: 'toggle-app-cameras', key: 'camera_hub' },
+      { id: 'toggle-app-updater', key: 'self_updater' },
+      { id: 'toggle-app-ai', key: 'ai_assistant' },
+    ];
+    toggleBindings.forEach(tb => {
+      const el = document.getElementById(tb.id);
+      if (el) {
+        el.addEventListener('click', () => {
+          const active = !el.classList.contains('active');
+          updateToggle(tb.id, active);
+          state[tb.key] = tb.map ? tb.map(active) : active;
+          state.preset = 'custom';
+          updateFooterStatus();
+          updateSummary();
+        });
+      }
+    });
+
+    // Form inputs sync
+    const inputs = ['hostname', 'username', 'password', 'realname', 'timezone', 'keyboard', 'wlr-output', 'ui-scale', 'wifi-ssid', 'wifi-password', 'kilo-key'];
+    inputs.forEach(id => {
+      const el = document.getElementById('input-' + id);
+      if (el) {
+        el.addEventListener('change', () => {
+          // map dashed IDs to snake_case state keys
+          const keyMap = { 'wlr-output': 'wlr_output', 'ui-scale': 'ui_scale', 'wifi-ssid': 'wifi_ssid', 'wifi-password': 'wifi_password', 'kilo-key': 'kilo_api_key' };
+          const key = keyMap[id] || id.replace('-', '_');
+          state[key] = el.value;
+          state.preset = 'custom';
+          updateFooterStatus();
+          updateSummary();
+        });
+      }
+    });
+
+    // Action buttons
+    document.getElementById('btn-generate')?.addEventListener('click', generateConfig);
+    document.getElementById('btn-generate-main')?.addEventListener('click', generateConfig);
+    document.getElementById('btn-preview')?.addEventListener('click', previewConfig);
+    document.getElementById('btn-preview-main')?.addEventListener('click', previewConfig);
+    document.getElementById('btn-bake-main')?.addEventListener('click', bakeISO);
+    document.getElementById('modal-close')?.addEventListener('click', () => {
+      document.getElementById('modal-yaml').classList.remove('open');
+    });
+    document.getElementById('btn-copy-yaml')?.addEventListener('click', () => {
+      const text = document.getElementById('modal-yaml-text').textContent;
+      navigator.clipboard.writeText(text);
+      showToast('Copied YAML to clipboard!', 'success');
+    });
+    document.getElementById('btn-save-from-modal')?.addEventListener('click', () => {
+      document.getElementById('modal-yaml').classList.remove('open');
+      generateConfig();
+    });
+
+    // Hotkeys: 1-4 for presets, G generate, P preview
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.key === '1') applyPreset('livingroom');
+      else if (e.key === '2') applyPreset('theater-4k');
+      else if (e.key === '3') applyPreset('kiosk');
+      else if (e.key === '4') applyPreset('full-os');
+      else if (e.key === 'g' || e.key === 'G') generateConfig();
+      else if (e.key === 'p' || e.key === 'P') previewConfig();
+      else if (e.key === 'Escape') document.getElementById('modal-yaml').classList.remove('open');
+    });
+  }
+
+  function collectPayload() {
+    return {
+      hostname: document.getElementById('input-hostname')?.value || state.hostname,
+      username: document.getElementById('input-username')?.value || state.username,
+      password: document.getElementById('input-password')?.value || state.password,
+      realname: document.getElementById('input-realname')?.value || state.realname,
+      timezone: document.getElementById('input-timezone')?.value || state.timezone,
+      keyboard: document.getElementById('input-keyboard')?.value || state.keyboard,
+      display: state.display,
+      custom_display: state.custom_display,
+      wlr_output: document.getElementById('input-wlr-output')?.value || state.wlr_output,
+      ui_scale: parseInt(document.getElementById('input-ui-scale')?.value || state.ui_scale, 10),
+      shell: state.shell,
+      theme: state.theme,
+      audio: state.audio,
+      audio_engine: state.audio_engine,
+      night_mode: state.night_mode,
+      audio_passthrough: state.audio_passthrough,
+      cec: state.cec,
+      cec_wake: state.cec_wake,
+      cec_keys: state.cec_keys,
+      web_remote: state.web_remote,
+      web_remote_port: state.web_remote_port,
+      camera_hub: state.camera_hub,
+      self_updater: state.self_updater,
+      samba_share: state.samba_share,
+      ssh_server: state.ssh_server,
+      ai_assistant: state.ai_assistant,
+      kilo_api_key: document.getElementById('input-kilo-key')?.value || state.kilo_api_key || '',
+      storage: state.storage,
+      target_disk: state.target_disk,
+      zram_swap: state.zram_swap,
+      wifi_ssid: document.getElementById('input-wifi-ssid')?.value || state.wifi_ssid,
+      wifi_password: document.getElementById('input-wifi-password')?.value || state.wifi_password,
+      preset: state.preset,
+    };
+  }
+
+  async function generateConfig() {
+    const payload = collectPayload();
+    showToast('Generating autoinstall configuration...', 'info');
+    try {
+      const r = await fetch('/apps/installer/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (data.status === 'ok') {
+        showToast(`Saved to ${data.path} & iso/autoinstall/user-data`, 'success');
+      } else {
+        showToast('Generation failed: ' + (data.detail || 'Error'), 'info');
+      }
+    } catch (e) {
+      showToast('Failed to connect to backend: ' + e.message, 'info');
+    }
+  }
+
+  async function previewConfig() {
+    const payload = collectPayload();
+    try {
+      const r = await fetch('/apps/installer/preview?' + new URLSearchParams({
+        hostname: payload.hostname,
+        username: payload.username,
+        display: payload.display,
+        shell: payload.shell,
+        theme: payload.theme,
+        audio: payload.audio,
+        night_mode: payload.night_mode,
+        storage: payload.storage,
+        cec: payload.cec,
+        preset: payload.preset,
+      }));
+      const data = await r.json();
+      document.getElementById('modal-yaml-text').textContent = data.user_data;
+      document.getElementById('modal-yaml').classList.add('open');
+    } catch (e) {
+      showToast('Error generating preview: ' + e.message, 'info');
+    }
+  }
+
+  async function bakeISO() {
+    await generateConfig();
+    const pBox = document.getElementById('iso-progress-box');
+    pBox.style.display = 'block';
+    document.getElementById('iso-progress-title').textContent = 'Remastering unattended ISO...';
+    document.getElementById('iso-progress-log').textContent = 'Launching remaster task...';
+    showToast('ISO remastering started in background.', 'info');
+
+    try {
+      await fetch('/apps/installer/bake-iso', { method: 'POST' });
+      const poll = setInterval(async () => {
+        const sr = await fetch('/apps/installer/status');
+        const sdata = await sr.json();
+        const build = sdata.iso_build;
+        if (build) {
+          document.getElementById('iso-progress-log').textContent = build.progress || build.log?.slice(-1)[0] || '';
+          if (!build.running) {
+            clearInterval(poll);
+            if (build.output_iso) {
+              document.getElementById('iso-progress-title').textContent = '✓ ISO Ready: ' + build.output_iso;
+              showToast('ISO Build Complete! Ready to flash.', 'success');
+            } else if (build.error) {
+              document.getElementById('iso-progress-title').textContent = '✗ ISO Build Error: ' + build.error;
+              showToast('ISO Build Error: ' + build.error, 'info');
+            }
+          }
+        }
+      }, 2000);
+    } catch (e) {
+      document.getElementById('iso-progress-title').textContent = 'Error: ' + e.message;
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

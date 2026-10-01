@@ -1,0 +1,10 @@
+{
+  "comment": "tvtv HTPC OS Ventoy Configuration - Self-contained unattended installer",
+  "default": "tvtv Installer",
+  "menuentry": [
+    {
+      "name": "tvtv Installer (Unattended Auto-Install)",
+      "image": "/iso/tvtv-installer.iso"
+    }
+  ]
+}

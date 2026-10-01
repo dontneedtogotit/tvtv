@@ -1,0 +1,13 @@
+{
+  "id": "history",
+  "name": "History",
+  "version": "0.1.0",
+  "description": "Watch history and resume playback.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["history.read"],
+  "categories": ["media"]
+}

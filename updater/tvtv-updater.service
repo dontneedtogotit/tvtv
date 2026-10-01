@@ -10,8 +10,19 @@ WorkingDirectory=/home/htpc/tvtv/updater
 ExecStart=/home/htpc/tvtv/updater/start.sh
 Restart=on-failure
 RestartSec=10
+Environment=TVTV_PORT=8001
 Environment=TVTV_UPDATER_PORT=8001
-Environment=GITHUB_REPO=owner/tvtv-yt
+Environment=TVTV_GITHUB_REPO=dontneedtogotit/tvtv
+Environment=TVTV_BRANCH=main
+
+# ── Sandboxing & Resource Hardening (Phase 8) ────────────────────────────────
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/htpc/tvtv /home/htpc/tvtv/logs /home/htpc/tvtv/var /tmp /run
+PrivateTmp=true
+MemoryMax=1G
+LimitNOFILE=16384
 
 [Install]
 WantedBy=multi-user.target
