@@ -148,6 +148,22 @@ for i in {1..30}; do
   sleep 0.2
 done
 
+# 5b. Backend watchdog (P12-3): if the dashboard/backend dies, restart it
+# so a crashed FastAPI process no longer means a dead box.
+(
+  while true; do
+    if ! curl -s --max-time 3 http://localhost:8000/api/health >/dev/null 2>&1; then
+      echo "[watchdog] backend down, restarting..."
+      REPO_ROOT="${HOME}/tvtv"
+      if [ -d "$REPO_ROOT" ] && [ -f "$REPO_ROOT/scripts/start.sh" ]; then
+        (cd "$REPO_ROOT" && bash scripts/start.sh) >/dev/null 2>&1 &
+      fi
+    fi
+    sleep 10
+  done
+) &
+WATCHDOG_PID=$!
+
 # 6. Resolve best available browser for Kiosk
 BROWSER=""
 for b in chromium chromium-browser google-chrome-stable google-chrome brave-browser epiphany-browser cog firefox; do

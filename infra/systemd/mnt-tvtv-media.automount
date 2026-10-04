@@ -1,0 +1,8 @@
+[Unit]
+Description=Automount TVTV Media Partition
+
+[Automount]
+Where=/mnt/tvtv-media
+
+[Install]
+WantedBy=multi-user.target

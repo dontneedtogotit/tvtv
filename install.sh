@@ -347,6 +347,14 @@ EOF
   cp "$REPO_ROOT/scripts/tvtv-yt.service" /etc/systemd/system/
   cp "$REPO_ROOT/updater/tvtv-updater.service" /etc/systemd/system/
 
+  # P12-1: systemd session target + labwc service (replaces agetty→bash_profile chain)
+  if [ -f "$REPO_ROOT/infra/systemd/tvtv-session.target" ]; then
+    cp "$REPO_ROOT/infra/systemd/tvtv-session.target" /etc/systemd/system/
+  fi
+  if [ -f "$REPO_ROOT/infra/systemd/labwc.service" ]; then
+    cp "$REPO_ROOT/infra/systemd/labwc.service" /etc/systemd/system/
+  fi
+
   # Ydotoold daemon service
   HTPC_UID="$(id -u "$HTPC_USER" 2>/dev/null || echo 1000)"
   HTPC_GID="$(id -g "$HTPC_USER" 2>/dev/null || echo 1000)"
@@ -435,6 +443,32 @@ EOF
     log_ok "Firewall kiosk posture applied (UFW)"
   else
     log_ok "Firewall skipped: ufw not available"
+  fi
+
+  # 12c. Branded identity (P11-4)
+  if [ -x "$REPO_ROOT/scripts/setup-identity.sh" ]; then
+    "$REPO_ROOT/scripts/setup-identity.sh"
+    log_ok "TVTV OS identity applied"
+  fi
+
+  # 12d. Dedicated media storage (P11-3)
+  if [ -x "$REPO_ROOT/scripts/setup-storage.sh" ]; then
+    "$REPO_ROOT/scripts/setup-storage.sh"
+    log_ok "TVTV Media storage configured"
+  fi
+
+  # 12e. Logging & rotation (P11-8)
+  if [ -x "$REPO_ROOT/scripts/setup-logging.sh" ]; then
+    "$REPO_ROOT/scripts/setup-logging.sh"
+    log_ok "TVTV Logging hardened"
+  fi
+
+  # 12f. EDID-driven display detection (P12-4): detect-tv.sh exists but was
+  # never called during install. Run it so WLR_OUTPUT/WLR_MODE reflect the
+  # real connected display, then merge the result into tv.conf.
+  if [ -x "$REPO_ROOT/scripts/detect-tv.sh" ]; then
+    "$REPO_ROOT/scripts/detect-tv.sh" >/dev/null 2>&1 || true
+    log_ok "EDID display detection run"
   fi
 
   # 13. Autologin setup

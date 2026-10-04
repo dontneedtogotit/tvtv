@@ -238,6 +238,17 @@ def get_weather(lat: Optional[float] = None, lon: Optional[float] = None) -> dic
     }
     return {"status": "ok", "weather": weather_info}
 
+@router.get("/api/disk-space")
+def get_disk_space() -> dict[str, Any]:
+    """P11-7: Check available disk space and return warning if low."""
+    total, used, free = shutil.disk_usage("/")
+    return {
+        "total": total,
+        "used": used,
+        "free": free,
+        "warning": free < 5 * 1024 * 1024 * 1024
+    }
+
 
 @router.get("/profile")
 def get_profile() -> dict[str, Any]:

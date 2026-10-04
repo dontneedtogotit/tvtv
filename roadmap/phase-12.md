@@ -9,12 +9,12 @@ Tasks
 - [ ] P12-1 Measured boot budget with a CI gate (`systemd-analyze` target,
       currently unmeasured). Phase 5 listed "<15s to dashboard"; make it a
       number the build enforces.
-- [ ] P12-2 `labwc.service` + `tvtv-session.target` replacing
+- [x] P12-2 `labwc.service` + `tvtv-session.target` replacing
       `agetty → .bash_profile → labwc`, so a crashed compositor restarts
       instead of dropping the box to a bare TTY.
-- [ ] P12-3 Session watchdog: Chromium or dashboard death currently means a
+- [x] P12-3 Session watchdog: Chromium or dashboard death currently means a
       dead box until power cycle.
-- [ ] P12-4 EDID-driven mode selection wired into the install path.
+- [x] P12-4 EDID-driven mode selection wired into the install path.
       `scripts/detect-tv.sh` exists but nothing calls it during install.
 - [ ] P12-5 HDR / colour mode (`hdr-mode=auto`, HDR10 metadata). Absent
       despite a 4K preset existing in the installer.

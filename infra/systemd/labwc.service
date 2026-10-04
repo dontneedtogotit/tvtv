@@ -1,0 +1,26 @@
+[Unit]
+Description=Labwc Wayland Compositor (tvtv HTPC Session)
+After=tvtv-session.target
+Requires=tvtv-session.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+User=htpc
+PAMName=login
+TTYPath=/dev/tty1
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_CURRENT_DESKTOP=labwc
+ExecStart=/usr/local/bin/tvtv-session
+Restart=always
+RestartSec=3
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/htpc/.config /home/htpc/.cache /home/htpc/tvtv/var /home/htpc/tvtv/logs /tmp /run
+PrivateTmp=yes
+
+[Install]
+WantedBy=tvtv-session.target

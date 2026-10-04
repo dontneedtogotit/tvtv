@@ -1,0 +1,10 @@
+[Unit]
+Description=tvtv HTPC Graphical Session
+Requires=systemd-logind.service
+After=systemd-logind.service tvtv-yt.service
+
+# Pull in the compositor
+Wants=labwc.service
+
+[Install]
+Alias=graphical.target.wants/tvtv-session.target

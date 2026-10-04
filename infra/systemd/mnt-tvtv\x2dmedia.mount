@@ -1,0 +1,14 @@
+[Unit]
+Description=Mount TVTV Media Partition
+DefaultDependencies=no
+Conflicts=umount.target
+Before=umount.target
+
+[Mount]
+What=/dev/disk/by-label/TVTV_MEDIA
+Where=/mnt/tvtv-media
+Type=ext4
+Options=defaults,noatime
+
+[Install]
+WantedBy=multi-user.target
