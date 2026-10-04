@@ -7,10 +7,10 @@ widen remote capability before auth exists.
 
 Tasks
 
-- [ ] P14-1 Wi-Fi configuration from the TV UI: scan and join. `nmcli` scan
+- [x] P14-1 Wi-Fi configuration from the TV UI: scan and join. `nmcli` scan
       exists only inside the installer app, not in settings.
 - [ ] P14-2 VPN client (WireGuard) with UI and per-app routing.
-- [ ] P14-3 Wake-on-LAN and "wake this box to play X" from the phone.
+- [x] P14-3 Wake-on-LAN and "wake this box to play X" from the phone.
 - [ ] P14-4 Chromecast / DLNA / AirPlay receiver.
 - [ ] P14-5 On-screen keyboard and real text entry on the TV. Today the only
       text path is `ydotool type:` from the phone.

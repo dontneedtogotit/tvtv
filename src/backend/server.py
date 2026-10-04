@@ -44,6 +44,7 @@ from metadata_providers import router as metadata_router
 from subtitles import router as subtitles_router
 from playback import router as playback_router
 from system import router as system_router
+from network import router as network_router
 from mpv import CHECKPOINT_INTERVAL_S, checkpoint, get_property, send_command
 from profile import mpv_args, profile_summary
 from player_manager import player
@@ -636,6 +637,7 @@ app.include_router(metadata_router)
 app.include_router(subtitles_router)
 app.include_router(playback_router)
 app.include_router(system_router)
+app.include_router(network_router)
 
 # Explicit routes for the phone remote and now-playing overlay. These must be
 # declared before the static mount at "/" so they aren't shadowed.
