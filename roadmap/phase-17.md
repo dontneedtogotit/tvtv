@@ -11,11 +11,11 @@ focus trap, no reduced-motion handling, and every string is hardcoded English.
 
 Tasks
 
-- [ ] P17-1 Accessibility pass on the shell and every app frontend:
+- [x] P17-1 Accessibility pass on the shell and every app frontend:
       `aria-*` roles/states/labels, `aria-live` for status changes, focus
       trap in the app iframe, logical tab order matching visual order.
 - [ ] P17-2 Screen-reader mode with sensible reading order for a D-pad UI.
-- [ ] P17-3 High-contrast theme and a reduced-motion setting honoured in CSS.
+- [x] P17-3 High-contrast theme and a reduced-motion setting honoured in CSS.
 - [ ] P17-4 Full i18n. `locale` is set in the autoinstall identity and never
       reaches the UI; every string is hardcoded English.
 - [ ] P17-5 Long-press and context menus on cards — CEC remotes emit

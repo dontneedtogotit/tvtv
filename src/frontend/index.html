@@ -712,6 +712,30 @@
     animation: toastIn 0.2s ease-out;
   }
   @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── P17-3: Accessibility — reduced motion + high contrast ────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    #ambient-canvas { opacity: 0 !important; }
+  }
+
+  @media (prefers-contrast: more) {
+    :root {
+      --bg: #000000;
+      --surface: #1a1a1a;
+      --text: #ffffff;
+      --accent: #ffcc00;
+      --border: #ffffff;
+    }
+    .app-tile, .nav-item, .toast {
+      border-width: 3px !important;
+      border-color: #ffffff !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -719,21 +743,24 @@
 <!-- Dynamic Ambient Canvas Background -->
 <canvas id="ambient-canvas"></canvas>
 
-<div id="shell">
+<div id="shell" role="application" aria-label="tvtv HTPC OS">
   <!-- Left Navigation Rail -->
-  <aside id="rail">
-    <div class="brand-block" id="brand-home" tabindex="0" data-focusable>
+  <aside id="rail" role="navigation" aria-label="Main navigation">
+    <div class="brand-block" id="brand-home" tabindex="0" data-focusable
+         role="button" aria-label="Home">
       <div class="brand-logo">tvtv<span>OS</span></div>
       <div class="brand-pill">HTPC 10FT</div>
     </div>
 
-    <nav class="nav-group" id="nav-rail-group">
-      <button class="rail-btn active" data-section="home" tabindex="0">
+    <nav class="nav-group" id="nav-rail-group" role="menu" aria-label="Sections">
+      <button class="rail-btn active" data-section="home" tabindex="0"
+              role="menuitem" aria-label="Home section" aria-current="true">
         <span class="ico">🏠</span>
         <span class="label">Home</span>
         <span class="hotkey">1</span>
       </button>
-      <button class="rail-btn" data-section="continue" tabindex="0">
+      <button class="rail-btn" data-section="continue" tabindex="0"
+              role="menuitem" aria-label="Continue watching section">
         <span class="ico">▶</span>
         <span class="label">Continue</span>
         <span class="hotkey">2</span>
