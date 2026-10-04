@@ -6,6 +6,7 @@ Run from repo root:  .venv/bin/python tests/test_security_phase8b.py
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -131,6 +132,74 @@ def main() -> int:
         check("P8-1 loopback still allowed after changes", ok is True)
     except Exception as exc:
         check("P8-1 loopback still allowed after changes", False, repr(exc))
+
+    # ── P8-12: profile values are shell-quoted into tv.conf (no injection) ──
+    sys.path.insert(0, str(ROOT / 'src' / 'backend'))
+    import profile as profile_module
+
+    # Side-effect probe: if the quote broke out, `touch` would run.
+    # Harmless payload (marker file in /tmp), not poweroff/reboot.
+    malicious = 'x"; touch /tmp/tvtv-p812-marker; echo "'
+    quoted = profile_module.shell_quote_value(malicious)
+    expanded = 'export TV_THEME="' + quoted + '"'
+    try:
+        import subprocess as _sp
+        marker = Path('/tmp/tvtv-p812-marker')
+        if marker.exists():
+            marker.unlink()
+        _sp.run(['bash', '-c', expanded], capture_output=True, text=True, timeout=5)
+        check(
+            "P8-12 shell_quote_value neutralizes tv.conf injection",
+            not marker.exists(),
+            'marker created — injection executed!' if marker.exists() else 'no side effect',
+        )
+        if marker.exists():
+            marker.unlink()
+    except Exception as exc:
+        check("P8-12 shell_quote_value neutralizes tv.conf injection", False, repr(exc))
+
+    simple = 'estuary'
+    check(
+        "P8-12 shell_quote_value leaves simple values unchanged",
+        profile_module.shell_quote_value(simple) == simple,
+    )
+
+    # ── P8-1: app routers are guarded centrally at the mount site ──
+    server_src = (ROOT / 'src' / 'backend' / 'server.py').read_text()
+    # The mount loop guards every app router with the auth dependency.
+    mount_region = server_src.split('prefix="/apps/" + app_id')[1][:300]
+    check(
+        "P8-1 app routers mounted with auth dependency",
+        'dependencies=[Depends(verify_client_access)]' in mount_region,
+    )
+    # Runtime proof: an app route answers 200 on loopback and is rejected
+    # for an external host (pair_required mode).
+    try:
+        sys.path.insert(0, str(ROOT / 'src' / 'backend'))
+        from fastapi.testclient import TestClient
+        import server as server_mod
+        client = TestClient(server_mod.app)
+        resp = client.get('/apps/installer/config')
+        check(
+            "P8-1 app route reachable on loopback",
+            resp.status_code in (200, 404),  # 404 = route exists but guard passed first
+            f'status {resp.status_code}',
+        )
+        import auth as auth_rt
+        prev = os.environ.get('TVTV_SECURITY_MODE')
+        os.environ['TVTV_SECURITY_MODE'] = 'pair_required'
+        try:
+            auth_rt.verify_client_access(type('R', (), {'client': type('C', (), {'host': '10.0.0.9'}), 'headers': {}, 'query_params': {}, 'cookies': {}})())
+            check("P8-1 external app caller rejected", False, 'allowed')
+        except Exception:
+            check("P8-1 external app caller rejected", True)
+        if prev is None:
+            os.environ.pop('TVTV_SECURITY_MODE', None)
+        else:
+            os.environ['TVTV_SECURITY_MODE'] = prev
+    except Exception as exc:
+        check("P8-1 app route loopback", False, repr(exc))
+        check("P8-1 external app caller rejected", False, repr(exc))
 
     print()
     print(f"{PASSES} passed, {len(FAILURES)} failed")

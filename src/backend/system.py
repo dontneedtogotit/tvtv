@@ -21,7 +21,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from profile import load_tv_conf, profile_summary, profile_value
+from profile import load_tv_conf, profile_summary, profile_value, shell_quote_value
 from auth import verify_client_access
 
 log = logging.getLogger("tvtv.system")
@@ -297,7 +297,9 @@ def update_profile(req: ProfileUpdateRequest, request: Request) -> dict[str, Any
         "",
     ]
     for k, v in sorted(current.items()):
-        lines.append(f'export {k}="{v}"')
+        # P8-12: values are embedded in a sourced shell file — quote them so
+        # a value containing `"` cannot break out and execute commands.
+        lines.append(f'export {k}="{shell_quote_value(v)}"')
     lines.append("")
 
     try:

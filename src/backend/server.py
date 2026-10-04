@@ -648,7 +648,16 @@ for app_id, manifest in registry.apps.items():
         app.mount("/apps-frontend/" + app_id, StaticFiles(directory=str(frontend_path.parent), html=True), name="app-frontend-" + app_id)
     router = registry.app_router(app_id)
     if router is not None:
-        app.include_router(router, prefix="/apps/" + app_id, tags=["app-" + app_id])
+        # P8-1: app routers are mounted into the main app, so they inherit the
+        # same client verification as the core routes. Loopback passes
+        # silently (kiosk UI on-device is unaffected); remote callers need a
+        # paired token.
+        app.include_router(
+            router,
+            prefix="/apps/" + app_id,
+            tags=["app-" + app_id],
+            dependencies=[Depends(verify_client_access)],
+        )
 
 app.mount(
     "/",

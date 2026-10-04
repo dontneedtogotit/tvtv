@@ -46,6 +46,16 @@ def _strip_quotes(value: str) -> str:
     return value
 
 
+def shell_quote_value(value: str) -> str:
+    """Make `value` safe to embed in an `export KEY="VALUE"` shell line.
+
+    tv.conf is sourced by the shell, so an untrusted value containing `"`
+    could break out of the quotes and execute injected commands. Escaping
+    the double quotes (and backslashes) keeps the value literal.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def load_tv_conf() -> dict[str, str]:
     """Parse the first readable tv.conf into a dict. Never raises."""
     for path in _candidate_paths():

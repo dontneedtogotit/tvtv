@@ -3,10 +3,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-router = APIRouter()
+from auth import verify_client_access
+
+router = APIRouter(dependencies=[Depends(verify_client_access)])
 
 class MediaMetadata(BaseModel):
     title: str

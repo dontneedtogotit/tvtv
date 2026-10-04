@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-router = APIRouter()
+from auth import verify_client_access
+
+router = APIRouter(dependencies=[Depends(verify_client_access)])
 
 
 def _yt_dlp() -> str:
