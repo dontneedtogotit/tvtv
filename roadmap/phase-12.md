@@ -21,7 +21,7 @@ Tasks
 - [ ] P12-6 Multi-output support — `WLR_OUTPUT` is hardcoded `HDMI-A-1` in
       three places.
 - [ ] P12-7 Frame-rate switching / VRR for a large TV.
-- [ ] P12-8 Hardened kiosk profile: dedicated `--user-data-dir` under
+- [x] P12-8 Hardened kiosk profile: dedicated `--user-data-dir` under
       `/var/lib/tvtv`, no first-run wizard, no crash-restore UI.
 - [ ] P12-9 Idle/ambient mode and screen-off on long idle. Screen blanking is
       only disabled today.

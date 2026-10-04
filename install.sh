@@ -484,6 +484,18 @@ EOF
     log_ok "mDNS discovery configured"
   fi
 
+  # 12i. Flash write-endurance policy (P11-12): tmpfs for logs/caches
+  if [ -x "$REPO_ROOT/scripts/setup-tmpfs.sh" ]; then
+    "$REPO_ROOT/scripts/setup-tmpfs.sh"
+    log_ok "Flash write-endurance policy applied"
+  fi
+
+  # 12j. State snapshot before OTA (P11-9)
+  if [ -x "$REPO_ROOT/scripts/setup-state-snapshot.sh" ]; then
+    "$REPO_ROOT/scripts/setup-state-snapshot.sh" snapshot >/dev/null 2>&1 || true
+    log_ok "Pre-install state snapshot saved"
+  fi
+
   # 13. Autologin setup
   mkdir -p /etc/systemd/system/getty@tty1.service.d
   cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
@@ -523,8 +535,16 @@ if [ -n "${WLR_OUTPUT:-}" ] || [ -n "${WLR_MODE:-}" ]; then
 fi
 
 # Launch Chromium kiosk pointing at local tvtv dashboard
+# P12-8: hardened kiosk profile — dedicated user-data-dir under /var/lib/tvtv,
+# no first-run wizard, no crash-restore UI.
+KIOSK_DATA_DIR="/var/lib/tvtv/chromium-kiosk"
+mkdir -p "$KIOSK_DATA_DIR" 2>/dev/null || true
 exec chromium --kiosk --noerrdialogs --disable-infobars \
      --disable-features=Translate \
+     --user-data-dir="$KIOSK_DATA_DIR" \
+     --no-first-run \
+     --disable-session-crashed-bubble \
+     --hide-crash-restore-bubble \
      http://localhost:8000/
 EOF
   chmod +x "/home/$HTPC_USER/.config/labwc/autostart"

@@ -25,11 +25,11 @@ Tasks
       `var/` and `~/.cache` grow unbounded today.
 - [x] P11-8 Journald caps (`SystemMaxUse`), logrotate for file logs, and a
       periodic vacuum job.
-- [ ] P11-9 State snapshot/restore (settings, library index, history) around
+- [x] P11-9 State snapshot/restore (settings, library index, history) around
       OTA.
 - [ ] P11-10 Optional LUKS-encrypted media volume with TV-driven unlock at
       boot.
 - [ ] P11-11 USB storage as a first-class library source with hotplug.
-- [ ] P11-12 Flash write-endurance policy (tmpfs for logs/caches, read-mostly
+- [x] P11-12 Flash write-endurance policy (tmpfs for logs/caches, read-mostly
       mounts) for eMMC/SD-based NUCs.
 - [ ] P11-13 `fwupd` for firmware updates.
