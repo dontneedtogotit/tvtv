@@ -503,8 +503,9 @@ class AIChatRequest(BaseModel):
     conversation_id: str = Field("default", description="Conversation session id")
 
 @app.post("/api/ai/chat")
-def ai_chat(req: AIChatRequest) -> JSONResponse:
+def ai_chat(req: AIChatRequest, request: Request) -> JSONResponse:
     """Send a message to the tvtv agentic AI (Kilo Gateway free models)."""
+    verify_client_access(request)
     try:
         result = send_chat_message(req.conversation_id, req.message)
         return JSONResponse(result)
@@ -512,8 +513,10 @@ def ai_chat(req: AIChatRequest) -> JSONResponse:
         return JSONResponse({"error": str(e), "reply": "Sorry, I couldn't process that."}, status_code=500)
 
 @app.post("/api/ai/chat/stream")
-async def ai_chat_stream(req: AIChatRequest) -> StreamingResponse:
+async def ai_chat_stream(req: AIChatRequest, request: Request) -> StreamingResponse:
     """Stream the tvtv assistant reply token-by-token from Kilo Gateway."""
+    verify_client_access(request)
+
     async def _stream():
         try:
             result = send_chat_message(req.conversation_id, req.message)
@@ -535,11 +538,13 @@ async def ai_chat_stream(req: AIChatRequest) -> StreamingResponse:
     return StreamingResponse(_stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 @app.get("/api/ai/history/{conversation_id}")
-def ai_history(conversation_id: str) -> JSONResponse:
+def ai_history(conversation_id: str, request: Request) -> JSONResponse:
+    verify_client_access(request)
     return JSONResponse({"conversation_id": conversation_id, "messages": get_ai_history(conversation_id)})
 
 @app.post("/api/ai/clear/{conversation_id}")
-def ai_clear(conversation_id: str) -> JSONResponse:
+def ai_clear(conversation_id: str, request: Request) -> JSONResponse:
+    verify_client_access(request)
     clear_ai_conversation(conversation_id)
     return JSONResponse({"status": "ok", "conversation_id": conversation_id})
 
@@ -547,8 +552,9 @@ class AIVoiceRequest(BaseModel):
     text: str
 
 @app.post("/api/ai/voice")
-def ai_voice_parse(req: AIVoiceRequest) -> JSONResponse:
+def ai_voice_parse(req: AIVoiceRequest, request: Request) -> JSONResponse:
     """Fast local parse of a voice command without LLM round-trip."""
+    verify_client_access(request)
     return JSONResponse(parse_voice_command(req.text))
 
 @app.get("/api/position")
@@ -575,12 +581,13 @@ async def position() -> JSONResponse:
 
 
 @app.post("/api/checkpoint")
-async def force_checkpoint() -> JSONResponse:
+async def force_checkpoint(request: Request) -> JSONResponse:
     """Persist the current position to history now.
 
     The background loop does this every CHECKPOINT_INTERVAL_S; this endpoint
     exists so the UI can flush on stop/quit and tests can verify the path.
     """
+    verify_client_access(request)
     try:
         written = await asyncio.to_thread(checkpoint)
     except Exception as e:

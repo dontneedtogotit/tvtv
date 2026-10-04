@@ -4,14 +4,18 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from auth import verify_client_access
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / 'config'
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_PATH = CONFIG_DIR / 'settings.json'
 
-router = APIRouter()
+# Auth: all settings routes require client verification (P8-1). Verify passes
+# silently for loopback, so the kiosk UI on-device is unaffected.
+router = APIRouter(dependencies=[Depends(verify_client_access)])
 
 class Settings(BaseModel):
     sponsorblock: bool = True

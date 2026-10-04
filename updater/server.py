@@ -52,9 +52,32 @@ async def add_security_headers(request, call_next):
 
 # ── Config ────────────────────────────────────────────────────────────────────
 PROJECT_DIR = Path(os.getenv("TVTV_DIR", "/home/htpc/tvtv"))
-# Fallback to repo root if default htpc path doesn't exist
-if not PROJECT_DIR.exists():
-    PROJECT_DIR = Path(__file__).resolve().parent.parent
+
+# ── Auth (P8-1/P8-4): mutating endpoints require the pairing token ──────────
+# Reuse the main server's auth module directly — same repo checkout on the
+# appliance — so security mode, pairing tokens, admin token, and expiry all
+# behave identically in both processes.
+import sys
+from fastapi import Request
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent / "src" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+try:
+    from auth import verify_client_access as _verify_client_access
+except Exception:  # standalone copy outside the repo: fail closed
+    from fastapi import HTTPException as _HTTPException
+
+    def _verify_client_access(request):
+        client_host = request.client.host if request.client else "127.0.0.1"
+        if client_host in ("127.0.0.1", "::1"):
+            return
+        raise _HTTPException(401, "Updater requires authentication (P8-1)")
+
+def _updater_client_access(request: "Request") -> None:
+    """Delegates to src/backend/auth.py (loopback always allowed)."""
+    _verify_client_access(request)
 
 GITHUB_REPO = os.getenv(
     "TVTV_GITHUB_REPO", os.getenv("GITHUB_REPO", "dontneedtogotit/tvtv")
@@ -294,8 +317,9 @@ def check() -> UpdateStatus:
 
 
 @app.post("/api/update", response_model=UpdateResult)
-def update(req: UpdateRequest) -> UpdateResult:
-    """Backup current version, reset working tree to origin/<branch>, sync deps, restart services."""
+def update(req: UpdateRequest, request: Request) -> UpdateResult:
+    """Backup current version, reset working tree to the fetched commit, sync deps, restart services."""
+    _updater_client_access(request)
     installed = get_installed_version()
     log(f"Update requested: installed={installed}")
 
@@ -317,8 +341,11 @@ def update(req: UpdateRequest) -> UpdateResult:
             _run(["git", "tag", "-f", f"tvtv-backup-{current_sha}", "HEAD"], cwd=PROJECT_DIR, timeout=10)
             log(f"Created backup ref for {current_sha}")
 
+        # P8-4: reset to the exact commit we fetched, never the moving ref.
+        # origin/<branch> could advance between fetch and reset, landing
+        # unreviewed code; remote_sha is what status() verified and showed.
         res = _run(
-            ["git", "reset", "--hard", f"origin/{GITHUB_BRANCH}"],
+            ["git", "reset", "--hard", remote_sha],
             cwd=PROJECT_DIR,
             timeout=300,
         )
@@ -328,7 +355,16 @@ def update(req: UpdateRequest) -> UpdateResult:
                 success=False, version=installed,
                 message=f"git reset failed: {res.stderr.strip()[:300]}",
             )
+        # P8-4: verify HEAD now matches the fetched SHA before declaring success.
         new_sha = remote_sha[:12]
+        verify = _run(["git", "rev-parse", "HEAD"], cwd=PROJECT_DIR, timeout=10)
+        if verify.returncode == 0 and verify.stdout.strip() != remote_sha:
+            log(f"post-reset mismatch: HEAD={verify.stdout.strip()[:12]} expected={remote_sha[:12]}")
+            return UpdateResult(
+                success=False, version=installed,
+                message=f"Update aborted: HEAD {verify.stdout.strip()[:12]} != requested {remote_sha[:12]}",
+            )
+        set_installed_version(new_sha)
         set_installed_version(new_sha)
         log(f"Reset to {new_sha}: {subject}")
 
@@ -360,8 +396,9 @@ def update(req: UpdateRequest) -> UpdateResult:
 
 
 @app.post("/api/rollback", response_model=UpdateResult)
-def rollback(req: Optional[RollbackRequest] = None) -> UpdateResult:
+def rollback(req: Optional[RollbackRequest] = None, request: Request = None) -> UpdateResult:
     """Rollback working tree to previous version saved before last update."""
+    _updater_client_access(request)
     if req is None:
         req = RollbackRequest()
     prev = get_previous_version()
@@ -416,7 +453,9 @@ def logs(lines: int = 50) -> dict:
 
 
 @app.post("/api/reboot")
-def reboot() -> dict:
+def reboot(request: Request) -> dict:
+    """Reboot the system (loopback or paired-token required)."""
+    _updater_client_access(request)
     subprocess.Popen(["systemctl", "reboot"])
     return {"status": "rebooting"}
 

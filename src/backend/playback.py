@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-router = APIRouter()
+from auth import verify_client_access
+
+# Auth: all playback-state routes require client verification (P8-1). Verify
+# passes silently for loopback, so the kiosk UI on-device is unaffected.
+router = APIRouter(dependencies=[Depends(verify_client_access)])
 
 VAR_DIR = Path(__file__).resolve().parent.parent.parent / 'var' / 'history'
 STATE_PATH = VAR_DIR / 'playback-state.json'

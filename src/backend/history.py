@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from auth import verify_client_access
 
 HISTORY_PATH = Path(__file__).resolve().parent.parent.parent / 'var' / 'history' / 'watch-history.json'
 HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
 if not HISTORY_PATH.exists():
     HISTORY_PATH.write_text('[]')
 
-router = APIRouter()
+# Auth: all history routes require client verification (P8-1). Verify passes
+# silently for loopback, so the kiosk UI on-device is unaffected.
+router = APIRouter(dependencies=[Depends(verify_client_access)])
 
 MAX_HISTORY = 200
 
