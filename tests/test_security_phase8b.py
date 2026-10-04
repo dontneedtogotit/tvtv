@@ -201,6 +201,36 @@ def main() -> int:
         check("P8-1 app route loopback", False, repr(exc))
         check("P8-1 external app caller rejected", False, repr(exc))
 
+    # ── P8-7: app sandboxing via transient systemd units ──
+    sandbox_script = ROOT / 'scripts' / 'run-app-sandboxed.sh'
+    if sandbox_script.exists():
+        sbs = sandbox_script.read_text()
+        check("P8-7 sandbox launcher uses systemd-run --scope", 'systemd-run' in sbs and '--scope' in sbs)
+        check(
+            "P8-7 sandbox launcher sets resource limits",
+            all(flag in sbs for flag in ('MemoryMax', 'NoNewPrivileges', 'ProtectSystem', 'PrivateTmp')),
+        )
+        check("P8-7 sandbox launcher resolves app start.sh", 'start.sh' in sbs)
+    else:
+        check("P8-7 sandbox launcher exists", False, 'scripts/run-app-sandboxed.sh missing')
+
+    # ── P8-10: firewall policy + posture toggle ──
+    fw_script = ROOT / 'scripts' / 'firewall-posture.sh'
+    if fw_script.exists():
+        fws = fw_script.read_text()
+        check("P8-10 firewall script default-deny incoming", 'default deny incoming' in fws)
+        check(
+            "P8-10 firewall script allows SSH before enabling",
+            'allow 22' in fws and 'ufw --force enable' in fws
+            and fws.index('allow 22') < fws.index('ufw --force enable'),
+        )
+        check("P8-10 firewall script restricts service ports to LAN", '192.168' in fws or '10.0.0.0' in fws or '172.16' in fws)
+    else:
+        check("P8-10 firewall script exists", False, 'scripts/firewall-posture.sh missing')
+
+    settings_text = (ROOT / 'src' / 'backend' / 'settings.py').read_text()
+    check("P8-10 settings has firewall posture field", 'firewall_posture' in settings_text)
+
     print()
     print(f"{PASSES} passed, {len(FAILURES)} failed")
     if FAILURES:

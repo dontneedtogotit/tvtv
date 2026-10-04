@@ -312,7 +312,7 @@ EOF
       chromium-browser chromium \
       cec-utils ir-keytable ydotool ydotoold playerctl \
       pipewire pipewire-audio-client-libraries wireplumber alsa-utils \
-      fonts-noto fonts-noto-color-emoji xdg-utils zram-tools chrony openssh-server \
+      fonts-noto fonts-noto-color-emoji xdg-utils zram-tools chrony openssh-server ufw \
       > /dev/null 2>&1 || true
     log_ok "Appliance packages installed"
   fi
@@ -427,6 +427,15 @@ EOF
   systemctl daemon-reload 2>/dev/null || true
   systemctl enable tvtv-yt.service tvtv-updater.service ydotoold.service tvtv-cec-remote.service >/dev/null 2>&1 || true
   log_ok "Systemd units enabled (tvtv-yt, tvtv-updater, ydotoold, tvtv-cec-remote)"
+
+  # 12b. Firewall posture (P8-10): kiosk default — deny incoming except
+  # loopback, SSH, and the appliance ports from LAN ranges.
+  if command -v ufw >/dev/null 2>&1 && [ -x "$REPO_ROOT/scripts/firewall-posture.sh" ]; then
+    "$REPO_ROOT/scripts/firewall-posture.sh" kiosk >/dev/null 2>&1 || true
+    log_ok "Firewall kiosk posture applied (UFW)"
+  else
+    log_ok "Firewall skipped: ufw not available"
+  fi
 
   # 13. Autologin setup
   mkdir -p /etc/systemd/system/getty@tty1.service.d
