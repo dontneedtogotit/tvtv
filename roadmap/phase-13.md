@@ -9,15 +9,15 @@ is built on top.
 
 Tasks
 
-- [ ] P13-1 Night mode as a real PipeWire/WirePlumber `filter-chain`:
+- [x] P13-1 Night mode as a real PipeWire/WirePlumber `filter-chain`:
       loudness/limiter plus a 1–4 kHz dialogue band. Today `TV_NIGHT_MODE=1`
       is exported and nothing implements the DSP.
 - [ ] P13-2 Passthrough wired to real profile switching (`profile.passthrough`)
       including TrueHD / DTS-HD / E-AC3, gated on display-port audio
       capability probing.
-- [ ] P13-3 Output picker UI using `wpctl`. The doctor script calls `pactl`,
+- [x] P13-3 Output picker UI using `wpctl`. The doctor script calls `pactl`,
       which a PipeWire-only install may not provide.
-- [ ] P13-4 Reconcile the HDMI audio pin (implement pinning, or drop the
+- [x] P13-4 Reconcile the HDMI audio pin (implement pinning, or drop the
       claim from docs and `BAD_FILES`).
 - [ ] P13-5 Per-app volume offsets, notification ducking, master limiter.
 - [ ] P13-6 Bluetooth audio pairing and output switching (soundbar /

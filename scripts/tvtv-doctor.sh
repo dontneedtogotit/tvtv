@@ -45,14 +45,15 @@ fi
 
 echo ""
 echo "=== 2. Audio & PipeWire ==="
-if command -v pactl >/dev/null 2>&1; then
-  default_sink=$(pactl get-default-sink 2>/dev/null || echo "unknown")
-  log_ok "Default audio sink: $default_sink"
-elif command -v wpctl >/dev/null 2>&1; then
-  default_sink=$(wpctl status 2>/dev/null | grep -A 2 "Audio" | grep -m 1 "*" | tr -s ' ' || echo "unknown")
+# P13-3: prefer wpctl (PipeWire native) over pactl, which may not be installed.
+if command -v wpctl >/dev/null 2>&1; then
+  default_sink=$(wpctl status 2>/dev/null | grep -A 5 "Sinks:" | grep -m 1 "*" | sed 's/^[[:space:]]*//' || echo "unknown")
   log_ok "Default audio sink (wpctl): $default_sink"
+elif command -v pactl >/dev/null 2>&1; then
+  default_sink=$(pactl get-default-sink 2>/dev/null || echo "unknown")
+  log_ok "Default audio sink (pactl): $default_sink"
 else
-  log_warn "Neither pactl nor wpctl is installed"
+  log_warn "Neither wpctl nor pactl is installed"
 fi
 
 echo ""

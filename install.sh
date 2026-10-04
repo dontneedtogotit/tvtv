@@ -110,7 +110,8 @@ require_root() {
 # ---------------------------------------------------------------------------
 BAD_FILES=(
   /etc/X11/xorg.conf.d/20-intel.conf
-  /etc/pipewire/pipewire.conf.d/90-hdmi-pin.conf
+  # P13-4: no longer in BAD_FILES — HDMI pinning is a feature, now installed
+  # by setup-audio.sh as infra/systemd/90-hdmi-pin.conf.
   /etc/sddm.conf.d/autologin.conf
 )
 
@@ -469,6 +470,12 @@ EOF
   if [ -x "$REPO_ROOT/scripts/detect-tv.sh" ]; then
     "$REPO_ROOT/scripts/detect-tv.sh" >/dev/null 2>&1 || true
     log_ok "EDID display detection run"
+  fi
+
+  # 12g. Audio hardening (P13-4, P13-1): HDMI pinning + night mode filter chain
+  if [ -x "$REPO_ROOT/scripts/setup-audio.sh" ]; then
+    "$REPO_ROOT/scripts/setup-audio.sh"
+    log_ok "TVTV Audio engine hardened"
   fi
 
   # 13. Autologin setup
