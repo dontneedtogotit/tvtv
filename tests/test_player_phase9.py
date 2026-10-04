@@ -5,6 +5,7 @@ Exercises:
   * PlayerManager track parsing and selection (P9-3)
   * Player watchdog exit handling and cleanup (P9-5)
   * SponsorBlock multi-category argument generation (P9-10)
+  * Hardware acceleration fallback ladder (P9-6)
   * End-to-end queue and player endpoints on running FastAPI server
 
 Run from repo root:  .venv/bin/python tests/test_player_phase9.py
@@ -17,12 +18,14 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'src' / 'backend'))
 
 import queue_db  # noqa: E402
-from player_manager import PlayerManager  # noqa: E402
+import player_manager  # noqa: E402
+from player_manager import PlayerManager, player  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -36,6 +39,8 @@ def check(label: str, ok: bool, detail: str = '') -> None:
 def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         tmp_dir = Path(td)
+        (tmp_dir / 'logs').mkdir()
+        os.environ['TVTV_LOG_DIR'] = str(tmp_dir / 'logs')
 
         # ── 1. SQLite Queue Database (P9-8) ───────────────────────────────────
         queue_db.DB_PATH = tmp_dir / 'test_queue.db'
@@ -88,8 +93,6 @@ def main() -> int:
             {'id': 2, 'type': 'sub', 'title': 'Spanish', 'lang': 'es', 'selected': False},
         ]
 
-        # Patch get_property on player_manager module for mock testing
-        import player_manager
         orig_get_prop = player_manager.get_property
         try:
             player_manager.get_property = lambda prop, **kw: sample_tracks if prop == 'track-list' else None
@@ -110,6 +113,42 @@ def main() -> int:
         pm.check_watchdog()
         check('P9-5 watchdog detects process exit and resets state',
               pm._process is None and pm._current_url is None)
+
+        # ── 4. Fallback Ladder (P9-6) ──────────────────────────────────────────
+        import subprocess as _sp
+        import time as _tm
+        
+        orig_popen = player_manager.subprocess.Popen
+        orig_sleep = _tm.sleep
+        _tm.sleep = lambda s: None # Skip sleep in tests
+        
+        def mock_popen(cmd, **kwargs):
+            # Inspect cmd for hwdec
+            hwdec = 'auto-safe'
+            for arg in cmd:
+                if arg.startswith('--hwdec='):
+                    hwdec = arg.split('=')[1]
+                    break
+            
+            mock_proc = MagicMock()
+            # auto-safe -> crash, no -> crash, libav -> success
+            if hwdec == 'auto-safe' or hwdec == 'no':
+                mock_proc.poll.return_value = 1
+            else:
+                mock_proc.poll.return_value = None
+            return mock_proc
+
+        player_manager.subprocess.Popen = mock_popen
+        
+        try:
+            pm.launch('https://youtu.be/test')
+            check('P9-6 fallback ladder tries all hwdec', pm.is_running) 
+        except Exception as e:
+            check('P9-6 fallback ladder succeeds (no Exception)', False, str(e))
+        finally:
+            player_manager.subprocess.Popen = orig_popen
+            _tm.sleep = orig_sleep
+            pm.stop()
 
         print()
         print(f'{len(FAILURES)} failure(s)' if FAILURES else 'ALL CHECKS PASSED')

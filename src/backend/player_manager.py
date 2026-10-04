@@ -1,7 +1,8 @@
 """Managed MPV Session & Playback Lifecycle Controller.
 
-P9-1, P9-3, P9-5: Manages the MPV playback process, socket IPC, property
-observation, audio/subtitle track switching, and crash/exit watchdog.
+P9-1, P9-3, P9-5, P9-6: Manages the MPV playback process, socket IPC, 
+property observation, audio/subtitle track switching, crash/exit watchdog,
+and hardware acceleration fallback.
 """
 
 from __future__ import annotations
@@ -75,6 +76,25 @@ class PlayerManager:
         ))
         return True
 
+    def _launch_attempt(self, cmd: list[str]) -> bool:
+        """Attempt to launch MPV with given command."""
+        self.stop()
+        log.info("Launching MPV: %s", " ".join(cmd[:10]))
+        try:
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            # Wait 1s and check if still running
+            time.sleep(1)
+            return self._process.poll() is None
+        except Exception as e:
+            log.error("MPV launch failed: %s", e)
+            return False
+
     def launch(
         self,
         url: str,
@@ -89,10 +109,9 @@ class PlayerManager:
         subtitle_url: Optional[str] = None,
         custom_args: Optional[list[str]] = None,
     ) -> dict[str, Any]:
-        """Launch a new MPV instance, stopping any previous one first."""
-        self.stop()
-
-        cmd = [
+        """Launch a new MPV instance, trying hardware acceleration fallbacks."""
+        
+        base_cmd = [
             MPV_BIN,
             "--no-terminal",
             "--force-window=yes",
@@ -104,41 +123,53 @@ class PlayerManager:
             "--input-ipc-server=" + IPC_SOCKET,
         ]
 
-        # Append TV profile args (--vo, --hwdec, --video-scale, passthrough)
-        cmd += mpv_args()
+        # Base args (including hwdec from profile)
+        args = mpv_args()
 
         if subtitle_url and subtitle_url.strip():
-            cmd.append(f"--sub-file={subtitle_url.strip()}")
+            args.append(f"--sub-file={subtitle_url.strip()}")
 
         if sponsorblock:
             cats = sponsorblock_categories or ["sponsor", "intro", "outro", "selfpromo"]
             cats_str = ",".join(cats)
-            cmd += [
+            args += [
                 "--script-opts=ytdl_hook-sponsorblock_remove=all",
                 f"--script-opts=ytdl_hook-sponsorblock_api=https://sponsor.ajay.app",
                 f"--script-opts=ytdl_hook-sponsorblock_categories={cats_str}",
             ]
 
         if seek is not None and seek > 0:
-            cmd += ["--start=+0", f"--seek={seek}"]
+            args += ["--start=+0", f"--seek={seek}"]
 
         if custom_args:
-            cmd += custom_args
+            args += custom_args
 
-        cmd.append(url)
+        # HWDEC Fallback Ladder (P9-6)
+        # 1. Start with configured hwdec
+        # 2. Try 'no'
+        # 3. Try 'libav'
+        
+        configured_hwdec = next((a.split('=')[1] for a in args if a.startswith('--hwdec=')), 'auto-safe')
+        fallback_ladder = [configured_hwdec]
+        if configured_hwdec != 'no':
+            fallback_ladder.append('no')
+        if 'libav' not in fallback_ladder:
+            fallback_ladder.append('libav')
 
-        log.info("Launching MPV: %s", " ".join(cmd[:10]))
-        try:
-            self._process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-        except FileNotFoundError:
-            raise RuntimeError(f"mpv executable not found at '{MPV_BIN}'")
+        for hwdec in fallback_ladder:
+            # Construct cmd with this hwdec
+            cmd = base_cmd + [a if not a.startswith('--hwdec=') else f'--hwdec={hwdec}' for a in args]
+            cmd.append(url)
+            
+            if self._launch_attempt(cmd):
+                break
+            else:
+                log.warning("MPV failed with hwdec=%s", hwdec)
+        else:
+            raise RuntimeError("MPV failed to launch with all hwdec fallbacks")
 
+        # Fallback loop finished, process should be running if we didn't raise
+        
         self._current_url = url
         self._current_title = title or url
         self._current_channel = channel
@@ -171,7 +202,7 @@ class PlayerManager:
             "status": "playing",
             "url": url,
             "title": self._current_title,
-            "pid": self._process.pid,
+            "pid": self._process.pid if self._process else 0,
             "subtitles": bool(subtitle_url),
         }
 
