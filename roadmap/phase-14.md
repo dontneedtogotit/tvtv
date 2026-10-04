@@ -16,7 +16,7 @@ Tasks
       text path is `ydotool type:` from the phone.
 - [ ] P14-6 Local speech-to-text for voice commands — `/api/ai/voice` parses
       text but nothing captures audio anywhere.
-- [ ] P14-7 mDNS/Bonjour advertisement (`_tvtv._tcp`) for discovery.
+- [x] P14-7 mDNS/Bonjour advertisement (`_tvtv._tcp`) for discovery.
 - [ ] P14-8 Remote pairing UX with per-device permissions (Phase 8 auth).
 - [ ] P14-9 Offline mode on the remote: cache the library so it degrades
       gracefully when the phone leaves the house and comes back.

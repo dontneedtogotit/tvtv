@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r src/backend/requirements.txt
+
+      - name: Shell syntax check
+        run: |
+          find scripts updater -name '*.sh' -exec bash -n {} \;
+          bash -n install.sh
+
+      - name: Python compile check
+        run: |
+          python -m py_compile src/backend/*.py
+          python -m py_compile updater/server.py
+
+      - name: Run test suites
+        run: |
+          python tests/test_security_phase8.py
+          python tests/test_security_phase8b.py
+          python tests/test_player_phase9.py
+          python tests/test_library_phase10.py
+          python tests/test_nfo_phase10.py
+          python tests/test_metadata_phase10.py
+          python tests/test_user_phase10.py
+          python tests/test_collections_phase10.py
+          python tests/test_media_models.py

@@ -20,7 +20,7 @@ Tasks
       from `src/frontend/remote.html`, outside `start-all.sh`'s model, and
       unreachable from the remote.
 - [ ] P16-7 Logs/debug viewer app over `journalctl`.
-- [ ] P16-8 One-button diagnostic bundle export (support zip: doctor output,
+- [x] P16-8 One-button diagnostic bundle export (support zip: doctor output,
       convergence check, service logs).
 - [ ] P16-9 Settings sync across devices (Phase 17 profiles).
 - [ ] P16-10 App icons and metadata in manifests surfaced in the grid.

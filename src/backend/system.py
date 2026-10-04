@@ -341,6 +341,27 @@ def update_profile(req: ProfileUpdateRequest, request: Request) -> dict[str, Any
     }
 
 
+@router.get("/diagnostics")
+def export_diagnostics(request: Request) -> dict[str, Any]:
+    """P16-8: One-button diagnostic bundle — doctor output, convergence check, service logs."""
+    verify_client_access(request)
+    import subprocess as _sp
+    result: dict[str, Any] = {"timestamp": time.time()}
+    try:
+        doctor = _sp.run(["bash", "/home/htpc/tvtv/scripts/tvtv-doctor.sh"],
+                         capture_output=True, text=True, timeout=30)
+        result["doctor"] = doctor.stdout
+    except Exception as e:
+        result["doctor"] = f"failed: {e!r}"
+    try:
+        check = _sp.run(["bash", "/home/htpc/tvtv/install.sh", "--check"],
+                        capture_output=True, text=True, timeout=30)
+        result["convergence_check"] = check.stdout
+    except Exception as e:
+        result["convergence_check"] = f"failed: {e!r}"
+    return result
+
+
 @router.post("/power")
 def power_action(req: PowerActionRequest, request: Request) -> dict[str, Any]:
     """Execute power and session actions (sleep, reboot, shutdown, restart UI)."""

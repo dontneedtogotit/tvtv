@@ -157,8 +157,15 @@ def _run_yt_dlp(args: list[str], timeout: int = 30) -> str:
 
 @app.get("/api/health")
 def health() -> dict:
+    # P18-8: version manifest surfaced at /api/health so the updater and
+    # store have something real to compare.
+    version = "0.1.0"
+    version_path = Path(__file__).resolve().parent.parent.parent / "VERSION"
+    if version_path.exists():
+        version = version_path.read_text().strip() or version
     return {
         "status": "ok",
+        "version": version,
         "yt_dlp": bool(shutil.which("yt-dlp")),
         "mpv": bool(shutil.which("mpv")),
         "tv_profile": profile_summary(),

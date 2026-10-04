@@ -478,6 +478,12 @@ EOF
     log_ok "TVTV Audio engine hardened"
   fi
 
+  # 12h. mDNS discovery (P14-7): advertise _tvtv._tcp on the LAN
+  if [ -x "$REPO_ROOT/scripts/setup-mdns.sh" ]; then
+    "$REPO_ROOT/scripts/setup-mdns.sh"
+    log_ok "mDNS discovery configured"
+  fi
+
   # 13. Autologin setup
   mkdir -p /etc/systemd/system/getty@tty1.service.d
   cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
