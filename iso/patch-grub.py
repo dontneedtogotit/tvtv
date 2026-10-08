@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Idempotently customize Ubuntu Server GRUB config for tvtv HTPC OS Installer.
 
-Bakes `autoinstall ds=nocloud;` (self-contained) or `autoinstall ds=nocloud-net;s=<url>`
-(LAN-served) into GRUB config (boot/grub/grub.cfg and boot/grub/loopback.cfg),
+Bakes a quoted `ds=nocloud;s=/cdrom/autoinstall/` (self-contained) or
+`ds=nocloud-net;s=<url>` (LAN-served), plus `autoinstall`, into GRUB config
+(boot/grub/grub.cfg and boot/grub/loopback.cfg),
 customizes menu colors for 10-foot TV viewing, adds HTPC-branded presets,
 and configures the boot timeout.
 
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shlex
 import sys
 
 TIMEOUT_RE = re.compile(r'^(\s*set\s+timeout\s*=\s*)("?)([0-9]+)(\"?)\s*$')
@@ -33,10 +35,13 @@ def _is_installer_kernel(line: str) -> bool:
 
 def build_autoinstall_arg(self_contained: bool, url: str | None) -> str:
     if self_contained:
-        return 'autoinstall ds=nocloud;'
-    if url:
-        return f'autoinstall ds=nocloud-net;s={url}'
-    raise ValueError('Either --self-contained or --url must be provided')
+        datasource = 'ds=nocloud;s=/cdrom/autoinstall/'
+    elif url:
+        datasource = f'ds=nocloud-net;s={url}'
+    else:
+        raise ValueError('Either --self-contained or --url must be provided')
+    # GRUB treats an unquoted semicolon as a command terminator.
+    return 'autoinstall ' + shlex.quote(datasource)
 
 
 def patch_text(text: str, self_contained: bool, url: str | None, timeout: int | None = None) -> tuple[str, int]:
@@ -84,14 +89,21 @@ def patch_text(text: str, self_contained: bool, url: str | None, timeout: int | 
                 out.append(f'menuentry "{new_title}" {rest}')
                 continue
 
-        # Autoinstall kernel arg injection
-        if 'autoinstall' in line:
-            out.append(line)
-            continue
-
         if _is_installer_kernel(line):
-            out.append(line.rstrip() + ' ' + autoinstall_arg)
-            patched += 1
+            # Replace stale/mode-switched arguments instead of treating any
+            # occurrence of "autoinstall" as proof that the seed is correct.
+            clean = re.sub(
+                r'''(?<!\S)(?:autoinstall|'ds=nocloud[^']*'|"ds=nocloud[^"]*"|ds=nocloud\S*)(?=\s|$)''',
+                '', line,
+            )
+            # Casper propagates options after --- into the installed system;
+            # the seed arguments belong only to the installer environment.
+            kernel, separator, trailing = clean.partition('---')
+            updated = kernel.rstrip() + ' ' + autoinstall_arg
+            if separator:
+                updated += ' ---' + trailing.rstrip()
+            out.append(updated)
+            patched += int(updated != line)
             continue
 
         out.append(line)
@@ -104,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument('path', help='path to a GRUB config file')
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument('--self-contained', action='store_true',
-                      help='bake self-contained autoinstall (ds=nocloud;) reading user-data from ISO')
+                      help='read the embedded NoCloud seed from /cdrom/autoinstall/')
     mode.add_argument('--url', help='autoinstall URL for LAN-served config')
     ap.add_argument('--timeout', type=int, default=None,
                     help='optionally rewrite the GRUB menu timeout to this many seconds')
@@ -122,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     with open(args.path, 'w', encoding='utf-8', errors='surrogateescape') as f:
         f.write(new_text)
 
-    desc = 'self-contained (ds=nocloud;)' if args.self_contained else f'LAN-served (ds=nocloud-net;s={args.url})'
+    desc = 'self-contained (ds=nocloud;s=/cdrom/autoinstall/)' if args.self_contained else f'LAN-served (ds=nocloud-net;s={args.url})'
     print(f'{args.path}: customized GRUB theme & patched {patched} kernel line(s) ({desc})')
     return 0
 
