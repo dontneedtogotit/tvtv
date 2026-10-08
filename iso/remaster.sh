@@ -126,37 +126,48 @@ fi
 # Hard check: a partial file means every attempt failed.
 [ -s "$BASE_ISO" ] || { echo "Base ISO download failed: $BASE_ISO is missing/empty" >&2; exit 1; }
 
-# --- extract the files we patch -------------------------------------------
-# Only grub.cfg and loopback.cfg leave the ISO. Targeted single-file extracts
-# avoid leaving a 550M read-only tree behind (xorriso extracts ISO9660 files
-# 444; whole-tree cleanup then fights permissions and wastes disk).
-# The base is edited IN PLACE (xorriso -indev base -map ... -outdev): this
-# preserves its exact hybrid boot layout -- BIOS El Torito (boot.catalog +
-# i386-pc) plus the UEFI APPENDED ESP partition and the GRUB2 MBR template --
-# while swapping only the files we change. Recreating from a tree with
-# `-as mkisofs` drops the appended ESP unless the El Torito `-e` interval is
-# byte-perfect, which is fragile across point releases.
-EXTRACT_DIR="$WORK_DIR/extract"
-rm -rf "$EXTRACT_DIR" 2>/dev/null || true
-mkdir -p "$EXTRACT_DIR/boot/grub"
-echo "Extracting GRUB configs ..."
-for f in grub.cfg loopback.cfg; do
-  xorriso -osirrox on -indev "$BASE_ISO" -extract "/boot/grub/$f" "$EXTRACT_DIR/boot/grub/$f"
-  [ -s "$EXTRACT_DIR/boot/grub/$f" ] || { echo "ERROR: failed to extract /boot/grub/$f" >&2; exit 1; }
-  chmod u+w "$EXTRACT_DIR/boot/grub/$f"
-done
+# --- extract the full base tree -------------------------------------------
+# The whole base tree is extracted and rebuilt with `xorriso -as mkisofs`,
+# replaying the base's own boot-geometry flags (captured from
+# -report_system_area as_mkisofs below). That reproduces the stock-Ubuntu
+# hybrid layout: BIOS El Torito (boot.catalog + i386-pc), the UEFI appended
+# ESP registered as a GPT EFI-system partition, the GRUB2 MBR template,
+# partition_offset 16, and the Joliet descriptor.
+#
+# Why not edit the base in place (-indev X -outdev X -map ...)? The previous
+# build did that and it silently corrupts the hybrid geometry: the replayed
+# GPT gets anchored at the session end while the file is padded past it, so
+# the backup GPT header does NOT sit at end-of-device (fdisk: "GPT PMBR size
+# mismatch" / "backup GPT table is not on the end of the device"), the base's
+# 16-sector partition offset is lost, and the Joliet descriptor is dropped.
+# UEFI firmwares and Ventoy then report the image as not x64-UEFI-bootable.
+#
+# Needs ~2.4G in WORK_DIR during the build; freed again afterwards.
+FULL_TREE="$WORK_DIR/fulltree"
+rm -rf "$FULL_TREE" 2>/dev/null || true
+mkdir -p "$FULL_TREE"
+echo "Extracting full base ISO tree (includes the ~2.4G squashfs) ..."
+# NOTE: in-repo xorriso is 1.5.8.pl02, which rejects the newer
+# "-osirrox on:disk_dev=off" mode; plain "on" is fine here (the Ubuntu
+# live-server ISO tree carries no device nodes -- they live in the squashfs).
+xorriso -osirrox on -indev "$BASE_ISO" -extract / "$FULL_TREE"
+[ -s "$FULL_TREE/boot/grub/grub.cfg" ] || { echo "ERROR: base tree extraction failed" >&2; exit 1; }
+# xorriso extracts ISO9660 files mode 444; make the tree writable for patching.
+chmod -R u+w "$FULL_TREE"
+# mkisofs generates the boot catalog itself; a stale extracted copy collides.
+rm -f "$FULL_TREE/boot.catalog"
 
 # --- patch GRUB (bake autoinstall args) ----------------------------------
 echo "Patching GRUB ..."
 if [ "$AUTOINSTALL_MODE" = "self-contained" ]; then
-  "$PATCH_GRUB" "$EXTRACT_DIR/boot/grub/grub.cfg" --self-contained --timeout "$GRUB_TIMEOUT"
-  "$PATCH_GRUB" "$EXTRACT_DIR/boot/grub/loopback.cfg" --self-contained --timeout "$GRUB_TIMEOUT"
+  "$PATCH_GRUB" "$FULL_TREE/boot/grub/grub.cfg" --self-contained --timeout "$GRUB_TIMEOUT"
+  "$PATCH_GRUB" "$FULL_TREE/boot/grub/loopback.cfg" --self-contained --timeout "$GRUB_TIMEOUT"
 else
-  "$PATCH_GRUB" "$EXTRACT_DIR/boot/grub/grub.cfg" --url "$AUTOINSTALL_URL" --timeout "$GRUB_TIMEOUT"
-  "$PATCH_GRUB" "$EXTRACT_DIR/boot/grub/loopback.cfg" --url "$AUTOINSTALL_URL" --timeout "$GRUB_TIMEOUT"
+  "$PATCH_GRUB" "$FULL_TREE/boot/grub/grub.cfg" --url "$AUTOINSTALL_URL" --timeout "$GRUB_TIMEOUT"
+  "$PATCH_GRUB" "$FULL_TREE/boot/grub/loopback.cfg" --url "$AUTOINSTALL_URL" --timeout "$GRUB_TIMEOUT"
 fi
 # Verify the patches actually landed before shipping the ISO.
-for f in "$EXTRACT_DIR/boot/grub/grub.cfg" "$EXTRACT_DIR/boot/grub/loopback.cfg"; do
+for f in "$FULL_TREE/boot/grub/grub.cfg" "$FULL_TREE/boot/grub/loopback.cfg"; do
   if [ ! -s "$f" ]; then
     echo "ERROR: $f is missing/empty after patching" >&2
     exit 1
@@ -167,11 +178,11 @@ for f in "$EXTRACT_DIR/boot/grub/grub.cfg" "$EXTRACT_DIR/boot/grub/loopback.cfg"
   fi
 done
 echo "GRUB patch verified:"
-grep -i "ds=" "$EXTRACT_DIR/boot/grub/grub.cfg" || true
+grep -i "ds=" "$FULL_TREE/boot/grub/grub.cfg" || true
 
 # --- stage tvtv repo for embedding into ISO ------------------------------
 REPO_ROOT="$(cd "$ISO_DIR/.." && pwd)"
-STAGE_DIR="$WORK_DIR/tvtv_stage"
+STAGE_DIR="$FULL_TREE/tvtv"
 rm -rf "$STAGE_DIR" 2>/dev/null || true
 mkdir -p "$STAGE_DIR"
 echo "Staging clean tvtv codebase for offline installer image ..."
@@ -186,65 +197,101 @@ tar -C "$REPO_ROOT" \
   --exclude='.pytest_cache' \
   -cf - . | tar -C "$STAGE_DIR" -xf -
 
-# --- update the base ISO in place ----------------------------------------
+# --- rebuild the ISO with the base's own boot geometry --------------------
 OUT_ISO="$OUTPUT_DIR/tvtv-installer.iso"
-echo "Building $OUT_ISO (in-place update of base ISO) ..."
-# Remove any prior output first (the copy below overwrites it). The in-place
-# update then keeps the base's MBR, El Torito BIOS+UEFI boot entries, and
-# appended ESP intact.
-# Build method (verified): a single `xorriso -indev BASE -outdev OUT` re-
-# serialises the image and DROPS the hybrid boot record (BIOS El Torito +
-# appended UEFI ESP + GRUB MBR) -- the output comes out with zero El Torito
-# boot images and an all-zero MBR, i.e. unbootable. The reliable path is to
-# COPY the base to the output first, then open that same file read-write and
-# -map the patched files in place (indev==outdev). Updating an existing image
-# keeps its boot record byte-for-byte intact.
-rm -f "$OUT_ISO"
-cp "$BASE_ISO" "$OUT_ISO"
-XORRISO_ARGS=(
-  -osirrox on
-  -indev "$OUT_ISO"
-  -outdev "$OUT_ISO"
-  -map "$EXTRACT_DIR/boot/grub/grub.cfg" /boot/grub/grub.cfg
-  -map "$EXTRACT_DIR/boot/grub/loopback.cfg" /boot/grub/loopback.cfg
-  -map "$STAGE_DIR" /tvtv
-)
+echo "Building $OUT_ISO (full -as mkisofs rebuild, stock hybrid boot geometry) ..."
+# Capture the exact mkisofs flags describing the base ISO's hybrid boot
+# layout: GRUB2 MBR template, protective MBR, GPT, partition offset, the
+# appended ESP (GPT EFI-system partition) and both El Torito entries (BIOS
+# i386-pc + UEFI). -report_system_area as_mkisofs emits one option or
+# option+value per line, designed to be fed back to -as mkisofs; the numbers
+# (interval ranges, sizes) are re-derived from the cached base on every
+# build, so a newer point release adapts automatically.
+# The base path is passed ABSOLUTE so the quoted interval sources inside the
+# captured lines are valid verbatim after quote-stripping (paths containing
+# spaces would break the word-split below).
+BASE_ABS="$(readlink -f "$BASE_ISO")"
+# NOTE: the report's option lines go to stdout; the xorriso NOTE/UPDATE
+# chatter goes to stderr and is discarded. The awk drops the chatter before
+# the first option line and prints every line from there on.
+mapfile -t SA_LINES < <(xorriso -indev "$BASE_ABS" -report_system_area as_mkisofs 2>/dev/null | awk '/^-/{p=1} p')
+[ "${#SA_LINES[@]}" -gt 0 ] || { echo "ERROR: failed to capture boot flags from the base ISO" >&2; exit 1; }
+# Turn the captured lines into argv elements. A value wholly wrapped in
+# single quotes stays one argument; anything else is word-split after
+# stripping embedded quotes (interval sources carry quoted paths).
+SA_ARGS=()
+for _ln in "${SA_LINES[@]}"; do
+  _flag="${_ln%% *}"
+  _rest=""
+  if [ "$_ln" != "$_flag" ]; then _rest="${_ln#* }"; fi
+  if [ -n "$_rest" ]; then
+    case "$_rest" in
+      \'*\') SA_ARGS+=("$_flag" "${_rest//\'/}") ;;
+      *) read -r -a _words <<< "${_rest//\'/}"
+         SA_ARGS+=("$_flag" "${_words[@]}") ;;
+    esac
+  else
+    SA_ARGS+=("${_flag//\'/}")
+  fi
+done
+# The captured set must contain the UEFI-critical options, or the output
+# cannot be x64-UEFI-bootable no matter what we map into it.
+for _need in -append_partition -appended_part_as_gpt -partition_offset -e; do
+  printf '%s\n' "${SA_ARGS[@]}" | grep -qx -- "$_need" \
+    || { echo "ERROR: base ISO boot flags missing '$_need'" >&2; exit 1; }
+done
+echo "Replaying ${#SA_ARGS[@]} boot-geometry arguments captured from the base ISO."
+# Bake the autoinstall seed into the tree (self-contained mode only).
 if [ "$AUTOINSTALL_MODE" = "self-contained" ]; then
-  XORRISO_ARGS+=(-map "$ISO_DIR/autoinstall/user-data" /autoinstall/user-data)
-  XORRISO_ARGS+=(-map "$ISO_DIR/autoinstall/meta-data" /autoinstall/meta-data)
+  mkdir -p "$FULL_TREE/autoinstall"
+  cp "$ISO_DIR/autoinstall/user-data" "$FULL_TREE/autoinstall/user-data"
+  cp "$ISO_DIR/autoinstall/meta-data" "$FULL_TREE/autoinstall/meta-data"
 fi
-# Note: The base ISO ships UEFI boot files under /EFI/boot/ and an El Torito
-# UEFI boot image. We preserve that layout intentionally.
-# Some UEFI firmware additionally requires /EFI/BOOT/BOOTX64.EFI; if your
-# target fails with "no bootfile found for uefi", extract the ISO and
-# create that fallback path before flashing.
-# Re-register the hybrid boot record (BIOS El Torito + appended UEFI ESP +
-# MBR) exactly as found in the base image. Without this, the in-place -map
-# update discards the El-Torito boot information and the output is
-# unbootable. Per the xorriso man page, replay must come AFTER all file
-# manipulations are done, just before -close.
-XORRISO_ARGS+=(-boot_image any replay)
-XORRISO_ARGS+=(-close)
-xorriso "${XORRISO_ARGS[@]}"
+rm -f "$OUT_ISO"
+# -iso-level 3 for the 2.4G squashfs, -r for Rock Ridge, -J -joliet-long so
+# long /tvtv names survive the Joliet descriptor the base also carries.
+xorriso -as mkisofs -iso-level 3 -r -J -joliet-long "${SA_ARGS[@]}" \
+  -o "$OUT_ISO" "$FULL_TREE"
 
-# --- verify boot records survived -----------------------------------------
-# A bootable hybrid image must still carry BOTH El Torito boot images
-# (BIOS + UEFI) after the in-place update. If they were discarded, the ISO
-# will not boot on the NUC -- fail loudly instead of shipping a dead image.
-BOOT_REPORT="$(xorriso -indev "$OUT_ISO" -report_el_torito plain 2>/dev/null || true)"
-BIOS_IMG="$(printf '%s\n' "$BOOT_REPORT" | grep -c 'BIOS' || true)"
-UEFI_IMG="$(printf '%s\n' "$BOOT_REPORT" | grep -c 'UEFI' || true)"
-if [ "$BIOS_IMG" -lt 1 ] || [ "$UEFI_IMG" -lt 1 ]; then
-  echo "ERROR: output ISO is missing boot records (BIOS=$BIOS_IMG UEFI=$UEFI_IMG)." >&2
-  echo "The in-place update dropped the hybrid boot layout; $OUT_ISO is unbootable." >&2
-  printf '%s\n' "$BOOT_REPORT" >&2
-  exit 1
+# --- verify the hybrid boot layout survived --------------------------------
+# Fail loudly instead of shipping a dead image. Grepping for the words
+# BIOS/UEFI is NOT enough: the old in-place build false-passed that check
+# while its GPT sat short of end-of-file, so firmwares rejected it.
+echo "Verifying hybrid boot layout ..."
+fail_build() { echo "ERROR: $1" >&2; exit 1; }
+BOOT_REPORT="$(xorriso -indev "$OUT_ISO" -report_el_torito plain 2>&1 || true)"
+SA_OUT="$(xorriso -indev "$OUT_ISO" -report_system_area plain 2>&1 || true)"
+[ -n "$BOOT_REPORT" ] || fail_build "cannot read El Torito report from $OUT_ISO"
+printf '%s\n' "$BOOT_REPORT" | grep -Eq 'El Torito boot img :+[[:space:]]+[0-9]+[[:space:]]+BIOS' \
+  || fail_build "El Torito BIOS boot image missing"
+printf '%s\n' "$BOOT_REPORT" | grep -Eq 'El Torito boot img :+[[:space:]]+[0-9]+[[:space:]]+UEFI' \
+  || fail_build "El Torito UEFI boot image missing"
+# GPT must be anchored at the true end of the file: if the backup GPT header
+# sits short of EOF, UEFI firmware and Ventoy reject the image as not
+# x64-UEFI-bootable.
+IMG_SECTORS=$(( $(stat -c %s "$OUT_ISO") / 512 ))
+GPT_BACKUP="$(printf '%s\n' "$SA_OUT" | awk '/^GPT lba range/ {print $NF}')"
+[ -n "$GPT_BACKUP" ] || fail_build "output has no GPT (UEFI via appended ESP lost)"
+[ "$((GPT_BACKUP + 1))" -eq "$IMG_SECTORS" ] \
+  || fail_build "backup GPT at sector $GPT_BACKUP but image ends at sector $((IMG_SECTORS-1)) (GPT not anchored at end-of-file)"
+# Partition offset must match the base (16 on 24.04.x); losing it breaks
+# loaders that mount the ISO9660 partition directly.
+POFF_OUT="$(printf '%s\n' "$SA_OUT" | awk '/^Partition offset/ {print $4}')"
+POFF_BASE="$(xorriso -indev "$BASE_ISO" -report_system_area plain 2>/dev/null | awk '/^Partition offset/ {print $4}')"
+[ "$POFF_OUT" = "$POFF_BASE" ] || fail_build "partition offset $POFF_OUT != base $POFF_BASE"
+# Joliet descriptor must survive; some loaders enumerate the tree via Joliet.
+xorriso -indev "$OUT_ISO" -toc 2>&1 | grep -q 'Joliet' || fail_build "Joliet descriptor missing"
+# The fallback UEFI loader file must be present in the ISO tree.
+xorriso -indev "$OUT_ISO" -find /EFI -type f 2>/dev/null | grep -qi '/EFI/boot/bootx64.efi' \
+  || fail_build "/EFI/boot/bootx64.efi missing from output"
+if command -v fdisk >/dev/null 2>&1; then
+  if fdisk -l "$OUT_ISO" 2>&1 | grep -qiE 'size mismatch|not on the end'; then
+    fail_build "fdisk reports GPT/PMBR inconsistency in $OUT_ISO"
+  fi
 fi
-echo "Boot records intact: BIOS El Torito + UEFI (appended ESP) present."
-# Best-effort cleanup of the extract tree (may leave read-only remnants; not
-# a build failure -- just wastes ~500M in WORK_DIR).
-chmod -R u+w "$EXTRACT_DIR" "$STAGE_DIR" 2>/dev/null || true
-rm -rf "$EXTRACT_DIR" "$STAGE_DIR" 2>/dev/null || true
+echo "Boot records intact: BIOS El Torito + UEFI appended ESP; GPT anchored at EOF; Joliet present."
+# Best-effort cleanup of the full tree (~2.4G in WORK_DIR).
+rm -rf "$FULL_TREE" 2>/dev/null || true
 echo "Build complete; freed extract tree:"
 df -h "$WORK_DIR" | tail -1
 
