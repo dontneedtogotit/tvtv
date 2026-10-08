@@ -106,10 +106,12 @@ cat > "${LABWC_DIR}/rc.xml" <<'EOF'
 EOF
 
 # Labwc autostart (Launches backend, CEC listener, background, and Chromium kiosk)
+# NOTE: labwc spawns this via /bin/sh (it ignores the shebang), so it MUST stay
+# POSIX-sh compatible: no bashisms (pipefail, brace expansion, arrays).
 cat > "${LABWC_DIR}/autostart" <<'EOF'
-#!/usr/bin/env bash
-# tvtv Labwc 10-foot session autostart
-set -uo pipefail
+#!/bin/sh
+# tvtv Labwc 10-foot session autostart (POSIX sh — labwc ignores the shebang)
+set -u
 
 # 1. Background Wallpaper
 if command -v swaybg >/dev/null 2>&1; then
@@ -194,6 +196,7 @@ if [ -n "$BROWSER" ]; then
           --kiosk \
           --noerrdialogs \
           --disable-infobars \
+          --disable-gpu \
           --disable-features=Translate,InterestFeedContentSuggestions \
           --check-for-update-interval=31536000 \
           --disable-pinch \
@@ -202,7 +205,7 @@ if [ -n "$BROWSER" ]; then
           --enable-features=VaapiVideoDecodeLinuxGL,VaapiVideoDecoder \
           --ignore-gpu-blocklist \
           --enable-zero-copy \
-          --ozone-platform=wayland \
+          --ozone-platform=x11 \
           "$KIOSK_TARGET"
         ;;
     esac
