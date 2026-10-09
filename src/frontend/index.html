@@ -1755,6 +1755,7 @@
   /* ── App Frame Launcher ───────────────────────────────────────────────────── */
   const APP_NAMES = {
     'camera-setup': 'Camera Hub & Surveillance',
+    'chromium': 'Chromium Web Browser',
     'settings': 'Settings & TV Profile',
     'history': 'Watch History',
     'store': 'App Store & Plugins',
@@ -1799,13 +1800,18 @@
   async function playVideo(item, { resume = false } = {}) {
     playSound('select');
     const seek = resume ? (item.position || 0) : (item.seek || undefined);
+    const targetUrl = item.url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : '');
+    if (!targetUrl) {
+      showToast('No video URL available', { icon: '⚠️' });
+      return;
+    }
     showToast(`Starting: ${item.title || 'Video'}`, { icon: '▶' });
     try {
-      await fetch(`${API}/api/play`, {
+      const res = await fetch(`${API}/api/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: item.url,
+          url: targetUrl,
           fullscreen: true,
           sponsorblock,
           title: item.title,
@@ -1815,6 +1821,11 @@
           seek,
         }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        showToast(`Playback error: ${err.detail || res.statusText}`, { icon: '⚠️' });
+        return;
+      }
       refreshNowPlaying();
     } catch {
       showToast('Playback failed to reach backend.', { icon: '⚠️' });
@@ -1822,13 +1833,15 @@
   }
 
   async function enqueueVideo(item) {
+    const targetUrl = item.url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : '');
+    if (!targetUrl) return;
     try {
       await fetch(`${API}/api/queue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: item.url,
-          title: item.title || item.url,
+          url: targetUrl,
+          title: item.title || targetUrl,
           channel: item.channel || item.uploader || '',
           duration: item.duration_seconds || item.durationSec || 0,
           thumbnail: item.thumbnail || '',
@@ -1883,6 +1896,12 @@
           refreshQueue();
         });
         el.addEventListener('click', () => playVideo(it));
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            playVideo(it);
+          }
+        });
         box.appendChild(el);
       });
     } catch {}
@@ -1929,7 +1948,10 @@
 
     el.addEventListener('click', () => resume ? playVideo(item, { resume: true }) : playVideo(item));
     el.addEventListener('keydown', (e) => {
-      if (e.key === 'q' || e.key === 'Q') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        resume ? playVideo(item, { resume: true }) : playVideo(item);
+      } else if (e.key === 'q' || e.key === 'Q') {
         e.stopPropagation();
         enqueueVideo(item);
       }
@@ -2073,10 +2095,11 @@
     const appGrid = document.createElement('div');
     appGrid.className = 'grid';
     [
+      ['chromium', '🌐', 'Web Browser', 'Chromium & TV bookmarks'],
       ['camera-setup', '📡', 'Camera Hub', 'Security cameras & ONVIF'],
       ['media-library', '🎬', 'Media Library', 'Local movies & videos'],
       ['file-manager', '📁', 'File Manager', 'Browse internal storage'],
-      ['store', '🛒', 'App Store', 'Manage plugins & apps'],
+      ['store', '🛒', 'App Store', 'Ubuntu apps & plugins'],
       ['remote', '📱', 'Web Remote', 'Control from smartphone'],
       ['system-update', '🔄', 'System Update', 'OTA updates & backups'],
     ].forEach(([id, ico, name, desc]) => {
@@ -2085,6 +2108,12 @@
       tile.tabIndex = 0;
       tile.innerHTML = `<div class="app-icon">${ico}</div><div class="app-name">${name}</div><div class="app-desc">${desc}</div>`;
       tile.addEventListener('click', () => launchApp(id));
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          launchApp(id);
+        }
+      });
       appGrid.appendChild(tile);
     });
     page.appendChild(appGrid);
@@ -2188,10 +2217,11 @@
     page.appendChild(grid);
 
     const apps = [
+      ['chromium', '🌐', 'Chromium Browser', 'Browse the web & streaming apps'],
       ['camera-setup', '📡', 'Camera Hub', 'Surveillance & ONVIF discovery'],
       ['media-library', '🎬', 'Media Library', 'Local movies, series & music'],
       ['file-manager', '📁', 'File Manager', 'Browse and manage recordings'],
-      ['store', '🛒', 'App Store', 'Plugins & extensions manager'],
+      ['store', '🛒', 'App Store', 'Ubuntu apps, plugins & extensions'],
       ['remote', '📱', 'Web Remote', 'Smartphone companion controller'],
       ['system-update', '🔄', 'System Update', 'OTA updates & backup rollback'],
       ['settings', '⚙', 'System Settings', 'Display, audio, and hardware options'],
@@ -2205,6 +2235,12 @@
       tile.tabIndex = 0;
       tile.innerHTML = `<div class="app-icon">${ico}</div><div class="app-name">${name}</div><div class="app-desc">${desc}</div>`;
       tile.addEventListener('click', () => launchApp(id));
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          launchApp(id);
+        }
+      });
       grid.appendChild(tile);
     }
   }

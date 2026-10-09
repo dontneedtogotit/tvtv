@@ -237,15 +237,24 @@ def _search_yt(q: str, limit: int = 20) -> list[dict]:
         else:
             duration_str = data.get("duration_string", "")
             duration_seconds = None
+        raw_url = data.get("url") or data.get("webpage_url") or ""
+        vid_id = data.get("id", "")
+        if raw_url and (raw_url.startswith("http://") or raw_url.startswith("https://") or raw_url.startswith("/")):
+            final_url = raw_url
+        elif vid_id:
+            final_url = f"https://www.youtube.com/watch?v={vid_id}"
+        else:
+            final_url = raw_url
+
         items.append({
-            "id": data.get("id", ""),
+            "id": vid_id,
             "title": data.get("title", ""),
             "uploader": data.get("uploader") or data.get("channel") or "",
             "duration": duration_str,
             "duration_seconds": duration_seconds,
             "views": data.get("view_count", 0),
             "thumbnail": thumbnail,
-            "url": data.get("url") or data.get("webpage_url", ""),
+            "url": final_url,
         })
     return items
 
@@ -344,6 +353,8 @@ def play(req: PlayRequest, request: Request) -> JSONResponse:
     url = req.url.strip()
     if not url:
         raise HTTPException(400, "No URL provided")
+    if not (url.startswith("http://") or url.startswith("https://") or url.startswith("/") or url.startswith("rtsp://") or url.startswith("file://")):
+        url = f"https://www.youtube.com/watch?v={url}"
 
     subtitle_url = _subtitle_url(req)
     try:

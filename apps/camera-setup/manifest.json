@@ -6,7 +6,7 @@
   "author": "tvtv",
   "entry": {
     "frontend": "frontend/index.html",
-    "backend": "backend/proxy.py"
+    "backend": "backend/server.py"
   },
   "permissions": ["network.scan", "storage.read"],
   "categories": ["utility"],

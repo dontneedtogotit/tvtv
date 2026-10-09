@@ -46,26 +46,65 @@
   <div class="card">
     <h3>Latest (Remote)</h3><div class="v" id="latest">…</div>
     <p id="notes"></p>
-    <div class="btn-row" id="actions" style="display:none;"></div>
+    <div class="btn-row" id="actions" style="margin-top:14px; display:flex; gap:10px;">
+      <button class="action-btn" id="btn-check" tabindex="0">🔄 Check for Updates</button>
+      <button class="action-btn" id="btn-update" style="display:none; background:linear-gradient(135deg, var(--accent), #0284c7); color:#000;" tabindex="0">⚡ Install Update</button>
+    </div>
   </div>
   <div class="card" id="rollback-card" style="display:none;">
     <h3>Previous Backup</h3>
     <div class="v" id="prev-version" style="font-size:1.2rem; color:var(--muted);">…</div>
     <p>A previous working version is saved on this appliance.</p>
     <div class="btn-row">
-      <button class="action-btn rollback" id="btn-rollback">Rollback to Previous Version</button>
+      <button class="action-btn rollback" id="btn-rollback" tabindex="0">⏪ Rollback to Previous Version</button>
     </div>
   </div>
   <div id="status">Checking for updates…</div>
+  <div class="card" id="log-card" style="display:none; margin-top:14px;">
+    <h3>Update Output</h3>
+    <pre id="log-text" style="font-family:monospace; font-size:0.85rem; color:#38bdf8; max-height:160px; overflow-y:auto; white-space:pre-wrap; background:#060a12; padding:12px; border-radius:8px;"></pre>
+  </div>
   <script type="module">
     import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
     initFocusNav(document);
+
+    async function doUpdate() {
+      if (!confirm('Download and apply the latest update now?')) return;
+      document.getElementById('status').textContent = 'Downloading and applying update…';
+      document.getElementById('btn-update').disabled = true;
+      document.getElementById('log-card').style.display = 'block';
+      document.getElementById('log-text').textContent = 'Fetching remote commit and resetting working tree...\n';
+      try {
+        const r = await fetch('/apps/system-update/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reboot: false })
+        });
+        const res = await r.json();
+        document.getElementById('log-text').textContent += (res.message || JSON.stringify(res)) + '\n';
+        if (res.success) {
+          document.getElementById('status').textContent = '✓ Update applied successfully: ' + res.version;
+          setTimeout(load, 2000);
+        } else {
+          document.getElementById('status').textContent = 'Update error: ' + (res.message || 'Failed');
+        }
+      } catch (e) {
+        document.getElementById('status').textContent = 'Update failed: ' + e.message;
+        document.getElementById('log-text').textContent += 'Error: ' + e.message + '\n';
+      } finally {
+        document.getElementById('btn-update').disabled = false;
+      }
+    }
 
     async function doRollback() {
       if (!confirm('Are you sure you want to rollback to the previous version?')) return;
       document.getElementById('status').textContent = 'Rolling back…';
       try {
-        const r = await fetch('/apps/system-update/rollback', { method: 'POST' });
+        const r = await fetch('/apps/system-update/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reboot: false })
+        });
         const res = await r.json();
         document.getElementById('status').textContent = res.message || 'Rollback finished.';
         await load();
@@ -76,13 +115,23 @@
 
     async function load() {
       try {
+        document.getElementById('status').textContent = 'Checking for updates…';
         const r = await fetch('/apps/system-update/status');
         const d = await r.json();
         document.getElementById('installed').textContent = d.installed_version || 'unknown';
         document.getElementById('latest').textContent = d.latest_version || 'unknown';
         document.getElementById('notes').textContent = (d.release_notes || '').slice(0, 400);
         document.getElementById('status').textContent =
-          d.update_available ? 'Update available.' : (d.release_notes || 'No updates available.');
+          d.update_available ? 'Update available!' : (d.release_notes || 'Your system is up to date.');
+
+        const upBtn = document.getElementById('btn-update');
+        if (d.update_available) {
+          upBtn.style.display = 'inline-block';
+          upBtn.textContent = `⚡ Install Update (${d.latest_version})`;
+          upBtn.onclick = doUpdate;
+        } else {
+          upBtn.style.display = 'none';
+        }
 
         if (d.rollback_available && d.previous_version) {
           document.getElementById('rollback-card').style.display = 'block';
@@ -93,9 +142,11 @@
           document.getElementById('rollback-card').style.display = 'none';
         }
       } catch (e) {
-        document.getElementById('status').textContent = 'Update check failed';
+        document.getElementById('status').textContent = 'Update check failed: ' + e.message;
       }
     }
+
+    document.getElementById('btn-check')?.addEventListener('click', load);
     load();
   </script>
 </body>

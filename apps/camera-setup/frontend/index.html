@@ -759,7 +759,9 @@
   (() => {
     'use strict';
 
-    const API = window.location.origin;
+    const API = window.location.pathname.startsWith('/apps-frontend/camera-setup')
+      ? '/apps/camera-setup'
+      : (window.location.port === '8002' ? '' : '/apps/camera-setup');
     const $ = id => document.getElementById(id);
 
     const scanBtn = $('scan-btn');
@@ -1544,7 +1546,8 @@
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            document.getElementById('qr-image').innerHTML = `<img src="data:image/png;base64,${data.qr_png_base64}" style="max-width:100%; height:auto; display:block;" />`;
+            const qrSrc = data.qr_png_base64 ? `data:image/png;base64,${data.qr_png_base64}` : (data.qr_url || '');
+            document.getElementById('qr-image').innerHTML = `<img src="${qrSrc}" style="max-width:100%; height:auto; display:block;" />`;
           }
         })
         .catch(() => {
@@ -1686,7 +1689,7 @@
     // down, say so up front instead of letting every scan click 503 silently.
     (async () => {
       try {
-        const r = await fetch(`${API}/apps/camera-setup/status`);
+        const r = await fetch(`${API}/status`);
         const s = await r.json();
         if (s.upstream === 'down' && showToast) {
           showToast('Camera scanner service is not running — start it with: bash apps/camera-setup/start.sh', 'error');

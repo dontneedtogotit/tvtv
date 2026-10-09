@@ -146,6 +146,15 @@ class PlayerManager:
             "--input-ipc-server=" + IPC_SOCKET,
         ]
 
+        # Explicitly point MPV's ytdl_hook to the project's updated yt-dlp binary
+        yt_dlp_bin = shutil.which("yt-dlp")
+        if not yt_dlp_bin:
+            venv_ytdl = Path(__file__).resolve().parent.parent.parent / ".venv" / "bin" / "yt-dlp"
+            if venv_ytdl.is_file():
+                yt_dlp_bin = str(venv_ytdl)
+        if yt_dlp_bin:
+            base_cmd.append(f"--script-opts-append=ytdl_hook-ytdl_path={yt_dlp_bin}")
+
         # YouTube account: hand stored cookies to the yt-dlp hook so
         # age-restricted / signed-in-only content resolves (P9 YouTube login).
         try:

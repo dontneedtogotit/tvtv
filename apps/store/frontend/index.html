@@ -2,97 +2,442 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>App Store</title>
+<title>tvtv App Store</title>
 <link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
 <style>
-  html, body { height: 100%; overflow: hidden; }
-  body { padding: 18px 24px; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-shrink: 0; }
-  #logo { font-weight: 900; color: var(--accent); font-size: 1.3rem; cursor: pointer; }
-  #note { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; flex-shrink: 0; }
-  #note.warn { color: var(--accent2); }
-  #grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; align-content: start; }
-  .app { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 18px; display: flex; flex-direction: column; gap: 8px; }
-  .app.off { opacity: 0.55; }
-  .app:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 24px var(--accent-soft); }
-  .app h3 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-  .app p { margin: 0; font-size: 0.9rem; color: var(--muted); flex: 1; }
-  .app .ver { font-size: 0.8rem; color: var(--muted-2); }
-  .badge { background: var(--accent-soft); color: var(--accent2); border-radius: var(--radius-pill); padding: 2px 10px; font-size: 0.8rem; font-weight: 700; }
-  .badge.off { background: #3a2020; color: #ff9a9a; }
-  .app .perms { font-size: 0.75rem; color: var(--muted-2); font-family: "SF Mono", monospace; }
-  button.toggle { margin-top: 4px; align-self: flex-start; background: var(--surface2); color: var(--text); border: 2px solid var(--border); border-radius: var(--radius-pill); padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
-  button.toggle:focus { border-color: var(--accent); }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-base, #06090e); color: var(--text-primary, #ffffff); font-family: "Segoe UI", "Noto Sans", system-ui, sans-serif; }
+  body { padding: 20px 32px; display: flex; flex-direction: column; gap: 16px; }
+  
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
+  .brand-row { display: flex; align-items: center; gap: 14px; }
+  #logo { font-weight: 900; color: var(--accent, #00d2ff); font-size: 1.4rem; letter-spacing: -0.5px; }
+  .title { font-weight: 800; font-size: 1.25rem; }
+  
+  /* Tabs */
+  .tabs-row { display: flex; gap: 12px; align-items: center; }
+  .tab-btn {
+    background: var(--surface-card, #162032);
+    border: 2px solid var(--border-subtle, #223147);
+    color: var(--text-secondary, #94a3b8);
+    padding: 8px 18px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:hover { background: var(--surface-hover, #1e2c45); color: #fff; border-color: var(--border-bright, #354e70); }
+  .tab-btn.active {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.15) 0%, var(--surface-card, #162032) 100%);
+    border-color: var(--accent, #00d2ff);
+    color: var(--accent, #00d2ff);
+    box-shadow: 0 0 16px rgba(0, 210, 255, 0.2);
+  }
+  
+  /* Search & Controls */
+  .controls-row { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .search-box { flex: 1; position: relative; max-width: 500px; }
+  .search-input {
+    width: 100%;
+    background: var(--surface-card, #162032);
+    border: 2px solid var(--border-subtle, #223147);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #fff;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+  }
+  .search-input:focus { outline: none; border-color: var(--accent, #00d2ff); }
+  
+  #note { color: var(--text-secondary, #94a3b8); font-size: 0.88rem; flex-shrink: 0; }
+  #note.warn { color: var(--accent-coral, #ff2a54); }
+  
+  /* App Grid */
+  #grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+    align-content: start;
+    padding-bottom: 24px;
+  }
+  
+  .app-card {
+    background: var(--surface-card, #162032);
+    border: 2px solid var(--border-subtle, #223147);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .app-card:hover {
+    border-color: var(--border-bright, #354e70);
+    background: var(--surface-hover, #1e2c45);
+  }
+  .app-card:focus {
+    outline: none;
+    border-color: var(--accent, #00d2ff);
+    box-shadow: 0 0 24px rgba(0, 210, 255, 0.25);
+    transform: translateY(-2px);
+  }
+  .app-card.off { opacity: 0.55; }
+  
+  .app-header { display: flex; align-items: center; gap: 14px; }
+  .app-icon { font-size: 2rem; width: 44px; text-align: center; }
+  .app-title-box { flex: 1; min-width: 0; }
+  .app-name { font-size: 1.15rem; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-pkg { font-size: 0.78rem; color: var(--text-muted, #64748b); font-family: monospace; }
+  
+  .badge {
+    background: rgba(0, 210, 255, 0.12);
+    color: var(--accent, #00d2ff);
+    border: 1px solid var(--accent, #00d2ff);
+    border-radius: var(--radius-pill, 999px);
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .badge.installed { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: #10b981; }
+  .badge.off { background: rgba(239, 68, 68, 0.15); color: #ff9a9a; border-color: #ef4444; }
+  
+  .app-desc { font-size: 0.88rem; color: var(--text-secondary, #94a3b8); line-height: 1.4; flex: 1; }
+  
+  .app-actions { display: flex; gap: 8px; align-items: center; margin-top: auto; padding-top: 8px; }
+  .btn-action {
+    background: var(--surface-dark, #0f1520);
+    color: #fff;
+    border: 1px solid var(--border-bright, #354e70);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-action:hover { background: var(--border-bright, #354e70); }
+  .btn-action:focus { border-color: var(--accent, #00d2ff); outline: none; }
+  .btn-action.primary {
+    background: linear-gradient(135deg, var(--accent, #00d2ff) 0%, #0284c7 100%);
+    color: #000;
+    border-color: var(--accent, #00d2ff);
+  }
+  .btn-action.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: #ef4444;
+  }
+  .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  /* Install Log Overlay */
+  .log-panel {
+    background: #060a12;
+    border: 1px solid var(--border-bright, #354e70);
+    border-radius: 12px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: #38bdf8;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    display: none;
+  }
 </style>
 </head>
 <body>
   <header>
-    <div id="logo">tvtv</div>
-    <div style="font-weight:800;font-size:1.2rem">App Store</div>
+    <div class="brand-row">
+      <div id="logo">tvtv</div>
+      <div class="title">App Store & Package Hub</div>
+    </div>
+    <div class="tabs-row">
+      <button class="tab-btn active" id="tab-ubuntu" tabindex="0">🛒 Ubuntu App Store</button>
+      <button class="tab-btn" id="tab-builtin" tabindex="0">📺 TV Appliance Apps</button>
+    </div>
   </header>
-  <p id="note">Loading…</p>
+
+  <div class="controls-row">
+    <div class="search-box">
+      <input type="text" class="search-input" id="search-input" placeholder="🔍 Search Ubuntu packages (e.g. kodi, vlc, retroarch, steam)..." tabindex="0" />
+    </div>
+    <div id="note">Loading catalog…</div>
+  </div>
+
   <div id="grid"></div>
+
   <script type="module">
     import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
     initFocusNav(document);
+
     const grid = document.getElementById('grid');
     const note = document.getElementById('note');
+    const searchInput = document.getElementById('search-input');
+    const tabUbuntu = document.getElementById('tab-ubuntu');
+    const tabBuiltin = document.getElementById('tab-builtin');
+
+    let currentTab = 'ubuntu';
+    let storeData = null;
+    let ubuntuApps = [];
+    let searchTimeout = null;
+
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    async function setDisabled(appId, disabled) {
-      const r = await fetch('/apps/store/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app_id: appId, disabled }),
-      });
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        note.textContent = body.detail || 'Could not change app state';
+    async function loadCatalog() {
+      try {
+        note.textContent = 'Loading packages…';
+        const r = await fetch('/apps/store/list');
+        storeData = await r.json();
+        ubuntuApps = storeData.ubuntu_apps || [];
+        render();
+      } catch (e) {
+        note.textContent = 'Failed to load catalog: ' + e.message;
         note.classList.add('warn');
-        return;
       }
-      await load();
     }
 
-    async function load() {
-      const r = await fetch('/apps/store/list');
-      const data = await r.json();
-      note.classList.remove('warn');
-      const broken = data.unreadable_manifests || [];
-      note.textContent = broken.length
-        ? `${broken.length} manifest(s) unreadable and skipped: ${broken.join(', ')}`
-        : (data.note || `${(data.apps || []).length} apps installed.`);
-      if (broken.length) note.classList.add('warn');
+    async function setDisabled(appId, disabled) {
+      try {
+        const r = await fetch('/apps/store/state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: appId, disabled }),
+        });
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          note.textContent = body.detail || 'Could not change app state';
+          note.classList.add('warn');
+          return;
+        }
+        await loadCatalog();
+      } catch (e) {
+        note.textContent = 'Error: ' + e.message;
+      }
+    }
 
+    async function launchApp(binary) {
+      try {
+        note.textContent = `Launching ${binary}…`;
+        const r = await fetch('/apps/store/ubuntu/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ binary }),
+        });
+        const res = await r.json();
+        if (res.status === 'ok') {
+          note.textContent = `✓ Launched ${binary} (PID: ${res.pid})`;
+        } else {
+          note.textContent = `Error launching ${binary}: ` + (res.detail || res.message);
+        }
+      } catch (e) {
+        note.textContent = `Failed to launch ${binary}: ` + e.message;
+      }
+    }
+
+    async function installPackage(pkg) {
+      try {
+        note.textContent = `Starting install of ${pkg}…`;
+        const r = await fetch('/apps/store/ubuntu/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ package: pkg }),
+        });
+        const res = await r.json();
+        note.textContent = `Installing ${pkg} in background…`;
+        pollInstall(pkg);
+      } catch (e) {
+        note.textContent = `Install request failed: ` + e.message;
+      }
+    }
+
+    async function removePackage(pkg) {
+      if (!confirm(`Are you sure you want to uninstall ${pkg}?`)) return;
+      try {
+        note.textContent = `Removing ${pkg}…`;
+        const r = await fetch('/apps/store/ubuntu/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ package: pkg }),
+        });
+        pollInstall(pkg, 'remove');
+      } catch (e) {
+        note.textContent = `Remove request failed: ` + e.message;
+      }
+    }
+
+    function pollInstall(pkg, action = 'install') {
+      const interval = setInterval(async () => {
+        try {
+          const r = await fetch(`/apps/store/ubuntu/install-status/${encodeURIComponent(pkg)}`);
+          const st = await r.json();
+          if (st) {
+            const logLine = st.log?.slice(-1)[0] || '';
+            note.textContent = `${action === 'install' ? 'Installing' : 'Removing'} ${pkg}: ${logLine}`;
+            if (!st.running) {
+              clearInterval(interval);
+              if (st.success) {
+                note.textContent = `✓ ${pkg} ${action === 'install' ? 'installed' : 'removed'} successfully!`;
+              } else if (st.error) {
+                note.textContent = `✗ ${action.capitalize()} error: ` + st.error;
+              }
+              await loadCatalog();
+            }
+          }
+        } catch (e) {
+          clearInterval(interval);
+        }
+      }, 1500);
+    }
+
+    async function doSearch() {
+      const q = searchInput.value.trim();
+      if (!q) {
+        render();
+        return;
+      }
+      try {
+        note.textContent = `Searching Ubuntu repositories for "${q}"…`;
+        const r = await fetch(`/apps/store/ubuntu/search?q=${encodeURIComponent(q)}`);
+        const data = await r.json();
+        const results = data.results || [];
+        note.textContent = `Found ${results.length} package(s) matching "${q}".`;
+        renderUbuntuList(results);
+      } catch (e) {
+        note.textContent = 'Search failed: ' + e.message;
+      }
+    }
+
+    function renderUbuntuList(list) {
       grid.innerHTML = '';
-      for (const a of (data.apps || [])) {
+      if (!list.length) {
+        grid.innerHTML = '<div style="color:var(--text-secondary); padding:24px;">No packages found matching your query.</div>';
+        return;
+      }
+      for (const a of list) {
         const el = document.createElement('div');
-        el.className = 'app' + (a.disabled ? ' off' : '');
+        el.className = 'app-card';
+        el.tabIndex = 0;
+        const isInstalled = a.installed || a.can_launch;
+        
+        el.innerHTML = `
+          <div class="app-header">
+            <div class="app-icon">${a.icon || '📦'}</div>
+            <div class="app-title-box">
+              <div class="app-name">${esc(a.name)}</div>
+              <div class="app-pkg">${esc(a.package || a.id)} · ${esc(a.category || 'Ubuntu App')}</div>
+            </div>
+            <span class="badge ${isInstalled ? 'installed' : ''}">${isInstalled ? 'INSTALLED' : 'AVAILABLE'}</span>
+          </div>
+          <div class="app-desc">${esc(a.description || 'Native Ubuntu application.')}</div>
+          <div class="app-actions">
+            ${isInstalled && a.binary ? `<button class="btn-action primary btn-launch" tabindex="0">▶ Launch</button>` : ''}
+            ${!isInstalled ? `<button class="btn-action primary btn-install" tabindex="0">⚡ Install</button>` : `<button class="btn-action danger btn-remove" tabindex="0">🗑️ Uninstall</button>`}
+          </div>
+        `;
+        
+        el.querySelector('.btn-launch')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          launchApp(a.binary);
+        });
+        el.querySelector('.btn-install')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          installPackage(a.package || a.id);
+        });
+        el.querySelector('.btn-remove')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removePackage(a.package || a.id);
+        });
+        
+        grid.appendChild(el);
+      }
+    }
+
+    function renderBuiltinList() {
+      grid.innerHTML = '';
+      const list = storeData?.apps || [];
+      note.textContent = `${list.length} built-in TV appliance applications loaded.`;
+      
+      for (const a of list) {
+        const el = document.createElement('div');
+        el.className = 'app-card' + (a.disabled ? ' off' : '');
         el.tabIndex = 0;
         const state = a.disabled
           ? '<span class="badge off">disabled</span>'
-          : `<span class="badge">${a.built_in ? 'built-in' : 'installed'}</span>`;
+          : `<span class="badge ${a.built_in ? 'installed' : ''}">${a.built_in ? 'built-in' : 'installed'}</span>`;
+        
         el.innerHTML = `
-          <h3>${esc(a.name)} ${state}</h3>
-          <p>${esc(a.description)}</p>
-          <div class="ver">v${esc(a.version)} · ${esc((a.categories || []).join(', '))}</div>
-          <div class="perms">${esc((a.permissions || []).join(' · ') || 'no permissions declared')}</div>`;
-        if (!a.has_frontend) {
-          el.querySelector('.ver').textContent += ' · no frontend';
-        }
-        if (a.built_in) {
-          const btn = document.createElement('button');
-          btn.className = 'toggle';
-          btn.textContent = a.disabled ? 'Enable' : 'Disable';
-          btn.tabIndex = 0;
-          btn.addEventListener('click', (e) => { e.stopPropagation(); setDisabled(a.id, !a.disabled); });
-          el.appendChild(btn);
-        }
+          <div class="app-header">
+            <div class="app-icon">${a.icon || '📦'}</div>
+            <div class="app-title-box">
+              <div class="app-name">${esc(a.name)}</div>
+              <div class="app-pkg">v${esc(a.version || '1.0')} · ${(a.categories || []).join(', ')}</div>
+            </div>
+            ${state}
+          </div>
+          <div class="app-desc">${esc(a.description || '')}</div>
+          <div class="app-actions">
+            ${a.has_frontend ? `<button class="btn-action primary btn-open" tabindex="0">▶ Open</button>` : ''}
+            ${a.built_in && a.id !== 'store' ? `<button class="btn-action btn-toggle" tabindex="0">${a.disabled ? 'Enable' : 'Disable'}</button>` : ''}
+          </div>
+        `;
+
+        el.querySelector('.btn-open')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.location.href = `/apps-frontend/${a.id}/`;
+        });
+        el.querySelector('.btn-toggle')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setDisabled(a.id, !a.disabled);
+        });
+
         grid.appendChild(el);
       }
-      if (!(data.apps || []).length) grid.innerHTML = '<p>No apps found.</p>';
     }
-    load();
+
+    function render() {
+      if (currentTab === 'ubuntu') {
+        const q = searchInput.value.trim();
+        if (q) doSearch();
+        else {
+          note.textContent = `${ubuntuApps.length} curated Ubuntu apps available for TV OS.`;
+          renderUbuntuList(ubuntuApps);
+        }
+      } else {
+        renderBuiltinList();
+      }
+    }
+
+    tabUbuntu.addEventListener('click', () => {
+      currentTab = 'ubuntu';
+      tabUbuntu.classList.add('active');
+      tabBuiltin.classList.remove('active');
+      searchInput.style.display = 'block';
+      render();
+    });
+
+    tabBuiltin.addEventListener('click', () => {
+      currentTab = 'builtin';
+      tabBuiltin.classList.add('active');
+      tabUbuntu.classList.remove('active');
+      searchInput.style.display = 'none';
+      render();
+    });
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(doSearch, 400);
+    });
+
+    loadCatalog();
   </script>
 </body>
 </html>

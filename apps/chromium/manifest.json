@@ -1,0 +1,14 @@
+{
+  "id": "chromium",
+  "name": "Chromium Browser",
+  "version": "1.0.0",
+  "description": "Native Web Browser and streaming bookmark hub for living room TV.",
+  "author": "tvtv",
+  "entry": {
+    "frontend": "frontend/index.html",
+    "backend": "backend/server.py"
+  },
+  "permissions": ["network.scan", "playback.control"],
+  "categories": ["internet", "media"],
+  "icon": "🌐"
+}

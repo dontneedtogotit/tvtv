@@ -104,6 +104,20 @@ if [ ! -d "$PROJECT_DIR" ]; then
     git clone --depth 1 https://github.com/dontneedtogotit/tvtv.git "$PROJECT_DIR" || true
   fi
 fi
+
+# Ensure $PROJECT_DIR is a full git repository configured with origin remote
+if [ -d "$PROJECT_DIR" ] && [ ! -d "$PROJECT_DIR/.git" ]; then
+  echo "Configuring git repository tracking origin in $PROJECT_DIR..."
+  (
+    cd "$PROJECT_DIR"
+    git init -b master 2>/dev/null || git init 2>/dev/null
+    git config user.name "tvtv"
+    git config user.email "tvtv@local"
+    git remote add origin https://github.com/dontneedtogotit/tvtv.git 2>/dev/null || git remote set-url origin https://github.com/dontneedtogotit/tvtv.git
+    git fetch origin master 2>/dev/null || true
+    git reset --mixed origin/master 2>/dev/null || true
+  ) || true
+fi
 chown -R "$HTPC_USER:$HTPC_USER" "$PROJECT_DIR" 2>/dev/null || true
 
 # Setup Python Virtual Environment

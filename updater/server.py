@@ -51,7 +51,10 @@ async def add_security_headers(request, call_next):
     return response
 
 # ── Config ────────────────────────────────────────────────────────────────────
-PROJECT_DIR = Path(os.getenv("TVTV_DIR", "/home/htpc/tvtv"))
+_default_dir = Path("/home/htpc/tvtv")
+if not _default_dir.exists():
+    _default_dir = Path(__file__).resolve().parent.parent
+PROJECT_DIR = Path(os.getenv("TVTV_DIR", str(_default_dir)))
 
 # ── Auth (P8-1/P8-4): mutating endpoints require the pairing token ──────────
 # Reuse the main server's auth module directly — same repo checkout on the
@@ -82,7 +85,20 @@ def _updater_client_access(request: "Request") -> None:
 GITHUB_REPO = os.getenv(
     "TVTV_GITHUB_REPO", os.getenv("GITHUB_REPO", "dontneedtogotit/tvtv")
 )
-GITHUB_BRANCH = os.getenv("TVTV_BRANCH", "main")
+
+def _detect_branch() -> str:
+    env_b = os.getenv("TVTV_BRANCH")
+    if env_b:
+        return env_b
+    try:
+        res = subprocess.run(["git", "branch", "--show-current"], cwd=PROJECT_DIR, capture_output=True, text=True, timeout=5)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return "master"
+
+GITHUB_BRANCH = _detect_branch()
 LOG_DIR = Path(os.getenv("TVTV_LOG_DIR", str(PROJECT_DIR / "logs")))
 LOG_FILE = LOG_DIR / "updater.log"
 

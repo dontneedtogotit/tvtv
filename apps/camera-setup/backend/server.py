@@ -28,24 +28,16 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import qrcode
 import io
 import base64
 from datetime import datetime
 
-app = FastAPI(title="tvtv-camera-setup", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter(tags=["camera-setup"])
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -259,11 +251,16 @@ async def _get_rtsp_urls(ip: str, brand: str = "", user: str = "admin", password
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@app.get("/api/health")
+@router.get("/status")
+def status() -> dict:
+    """Status endpoint for dashboard / header."""
+    return {"status": "ok", "upstream": "up", "detail": {"status": "ok", "version": "0.1.0"}}
+
+@router.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "version": "0.1.0"}
 
-@app.get("/api/system")
+@router.get("/api/system")
 def system_info() -> dict:
     """Get system information."""
     import platform
@@ -301,7 +298,7 @@ def system_info() -> dict:
             "error": str(e),
         }
 
-@app.get("/api/brands")
+@router.get("/api/brands")
 def get_brands() -> dict:
     """Get all supported camera brands with setup guides."""
     return {brand: {
@@ -312,7 +309,7 @@ def get_brands() -> dict:
         "quirks": data.get("quirks", ""),
     } for brand, data in BRANDS.items()}
 
-@app.get("/api/brands/{brand_name}")
+@router.get("/api/brands/{brand_name}")
 def get_brand_guide(brand_name: str) -> dict:
     """Get detailed setup guide for a specific brand."""
     # URL decode and normalize
@@ -332,7 +329,7 @@ def get_brand_guide(brand_name: str) -> dict:
         "quirks": data.get("quirks", ""),
     }
 
-@app.post("/api/scan")
+@router.post("/api/scan")
 async def scan_network(req: ScanRequest) -> dict:
     """Scan network for cameras."""
     try:
@@ -411,9 +408,9 @@ async def scan_network(req: ScanRequest) -> dict:
     # Run scans in parallel
     semaphore = asyncio.Semaphore(PARALLEL_SCANS)
     
-    async def bounded_scan(ip_str: str):
+    async def bounded_scan(ip_val: object):
         async with semaphore:
-            await scan_host(ip_str)
+            await scan_host(str(ip_val))
     
     await asyncio.gather(*[bounded_scan(ip) for ip in hosts])
     
@@ -423,7 +420,7 @@ async def scan_network(req: ScanRequest) -> dict:
         "cameras": [c.dict() for c in cameras],
     }
 
-@app.post("/api/probe")
+@router.post("/api/probe")
 async def probe_camera(req: ProbeRequest) -> dict:
     """Probe a specific camera for RTSP/ONVIF."""
     ip = req.ip.strip()
@@ -474,7 +471,7 @@ class CameraNotesRequest(BaseModel):
     ip: str
     notes: str = ""
 
-@app.post("/api/camera-notes")
+@router.post("/api/camera-notes")
 def save_camera_notes(req: CameraNotesRequest) -> dict:
     """Save notes for a camera by IP."""
     if not req.ip:
@@ -486,44 +483,64 @@ def save_camera_notes(req: CameraNotesRequest) -> dict:
     }
     return {"success": True, "ip": req.ip}
 
-@app.get("/api/camera-notes/{ip}")
+@router.get("/api/camera-notes/{ip}")
 def get_camera_notes(ip: str) -> dict:
     """Get saved notes for a camera by IP."""
     return _CAMERA_NOTES.get(ip, {"notes": "", "last_updated": ""})
 
-@app.get("/api/qr/{data}")
+@router.get("/api/qr/{data}")
 def generate_qr(data: str) -> dict:
     """Generate QR code for RTSP URL or any data."""
     try:
-        qr = qrcode.QRCode(version=1, box_size=10, border=2)
-        qr.add_data(data)
-        qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="#00d4ff", back_color="#12121a")
-        buffer = io.BytesIO()
-        img.save(buffer)
-        buffer.seek(0)
-        
-        return {
-            "success": True,
-            "data": data,
-            "qr_png_base64": base64.b64encode(buffer.read()).decode(),
-        }
+        try:
+            import qrcode
+            qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            qr.add_data(data)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="#00d4ff", back_color="#12121a")
+            buffer = io.BytesIO()
+            img.save(buffer)
+            buffer.seek(0)
+            
+            return {
+                "success": True,
+                "data": data,
+                "qr_png_base64": base64.b64encode(buffer.read()).decode(),
+            }
+        except ImportError:
+            import urllib.parse
+            encoded = urllib.parse.quote(data)
+            return {
+                "success": True,
+                "data": data,
+                "qr_png_base64": "",
+                "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={encoded}&color=00d4ff&bgcolor=12121a",
+            }
     except Exception as e:
         raise HTTPException(500, f"QR generation failed: {e}")
 
 class QRRequest(BaseModel):
     data: str
 
-@app.post("/api/qr")
+@router.post("/api/qr")
 def generate_qr_post(req: QRRequest) -> dict:
     """Generate QR code via POST body to avoid URL encoding issues."""
     return generate_qr(req.data)
 
-# ── Frontend ──────────────────────────────────────────────────────────────────
+# ── Frontend & Standalone App ─────────────────────────────────────────────────
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 INDEX_PATH = FRONTEND_DIR / "index.html"
+
+app = FastAPI(title="tvtv-camera-setup", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(router)
 
 @app.get("/")
 def index() -> HTMLResponse:
@@ -532,4 +549,4 @@ def index() -> HTMLResponse:
     raise HTTPException(404, "Frontend not found")
 
 if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")

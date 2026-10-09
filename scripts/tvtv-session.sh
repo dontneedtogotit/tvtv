@@ -159,10 +159,12 @@ if [ -f /usr/local/bin/tvtv-cec-remote ] && ! pgrep -f tvtv-cec-remote >/dev/nul
 fi
 
 # 5. Wait for backend ready
-for i in {1..30}; do
+_wait_i=0
+while [ "$_wait_i" -lt 30 ]; do
   if curl -s --max-time 1 http://localhost:8000/api/health >/dev/null 2>&1; then
     break
   fi
+  _wait_i=$((_wait_i + 1))
   sleep 0.2
 done
 

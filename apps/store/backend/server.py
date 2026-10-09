@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
+import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -28,12 +30,179 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
 # pretending an uninstall would work.
 BUILT_IN = {
     'camera-setup', 'file-manager', 'history', 'installer',
-    'media-library', 'remote', 'settings', 'store', 'system-update',
+    'media-library', 'remote', 'settings', 'store', 'system-update', 'chromium',
 }
 
 # Disabled state lives here so it survives restarts and is inspectable.
 STATE_DIR = Path(__file__).resolve().parent.parent.parent.parent / 'var' / 'store'
 STATE_PATH = STATE_DIR / 'state.json'
+
+
+# ── Curated Ubuntu HTPC & TV Application Catalog ──────────────────────────────
+
+UBUNTU_CATALOG = [
+    {
+        "id": "chromium",
+        "name": "Chromium Web Browser",
+        "package": "chromium-browser",
+        "fallback_packages": ["chromium", "google-chrome-stable"],
+        "binary": "chromium",
+        "fallback_binaries": ["chromium-browser", "google-chrome"],
+        "description": "Fast, secure web browser with hardware video acceleration for YouTube and streaming media.",
+        "icon": "🌐",
+        "category": "Browsers",
+        "featured": True,
+    },
+    {
+        "id": "kodi",
+        "name": "Kodi Media Center",
+        "package": "kodi",
+        "binary": "kodi",
+        "description": "10-foot living room media entertainment center with CEC remote navigation.",
+        "icon": "📺",
+        "category": "Media",
+        "featured": True,
+    },
+    {
+        "id": "vlc",
+        "name": "VLC Media Player",
+        "package": "vlc",
+        "binary": "vlc",
+        "description": "Universal open-source multimedia player that plays all codecs, streams, and local files.",
+        "icon": "🎬",
+        "category": "Media",
+        "featured": True,
+    },
+    {
+        "id": "retroarch",
+        "name": "RetroArch Gaming",
+        "package": "retroarch",
+        "binary": "retroarch",
+        "description": "All-in-one retro gaming console emulator frontend. Supports Bluetooth TV gamepads.",
+        "icon": "🎮",
+        "category": "Gaming",
+        "featured": True,
+    },
+    {
+        "id": "spotify",
+        "name": "Spotify Music",
+        "package": "spotify-client",
+        "binary": "spotify",
+        "description": "Stream millions of songs and podcasts on your living room TV sound system.",
+        "icon": "🎵",
+        "category": "Music",
+        "featured": True,
+    },
+    {
+        "id": "steam",
+        "name": "Steam Gaming",
+        "package": "steam-installer",
+        "fallback_packages": ["steam"],
+        "binary": "steam",
+        "description": "Steam Big Picture 10-foot living room gaming interface.",
+        "icon": "🎲",
+        "category": "Gaming",
+        "featured": True,
+    },
+    {
+        "id": "moonlight",
+        "name": "Moonlight Game Streaming",
+        "package": "moonlight-qt",
+        "binary": "moonlight",
+        "description": "Ultra low-latency 4K 120 FPS game streaming from your gaming PC to TV.",
+        "icon": "⚡",
+        "category": "Gaming",
+        "featured": False,
+    },
+    {
+        "id": "firefox",
+        "name": "Mozilla Firefox",
+        "package": "firefox",
+        "binary": "firefox",
+        "description": "Privacy-focused web browser for streaming web apps and web browsing.",
+        "icon": "🦊",
+        "category": "Browsers",
+        "featured": False,
+    },
+    {
+        "id": "obs",
+        "name": "OBS Studio",
+        "package": "obs-studio",
+        "binary": "obs",
+        "description": "Live streaming and screen/camera recording workstation.",
+        "icon": "📹",
+        "category": "Utilities",
+        "featured": False,
+    },
+    {
+        "id": "btop",
+        "name": "BTOP System Monitor",
+        "package": "btop",
+        "binary": "btop",
+        "description": "Visual hardware monitor for CPU, GPU, memory, disks, and network.",
+        "icon": "📊",
+        "category": "Utilities",
+        "featured": False,
+    },
+]
+
+_INSTALL_JOBS: dict[str, dict[str, Any]] = {}
+
+
+def _is_binary_installed(binary: str, fallback_binaries: Optional[list[str]] = None) -> tuple[bool, str]:
+    b = shutil.which(binary)
+    if b:
+        return True, b
+    if fallback_binaries:
+        for fb in fallback_binaries:
+            b = shutil.which(fb)
+            if b:
+                return True, b
+    return False, ""
+
+
+def _is_package_installed(pkg: str) -> bool:
+    try:
+        proc = subprocess.run(
+            ["dpkg-query", "-W", "-f=${Status}", pkg],
+            capture_output=True, text=True, timeout=3
+        )
+        return proc.returncode == 0 and "installed" in proc.stdout
+    except Exception:
+        return False
+
+
+def _run_apt_task(package: str, action: str = "install"):
+    _INSTALL_JOBS[package] = {"running": True, "action": action, "success": False, "log": [], "error": ""}
+    log.info("Starting apt %s for %s", action, package)
+    try:
+        cmd = ["sudo", "-n", "apt-get", action, "-y", package] if action == "install" else ["sudo", "-n", "apt-get", "remove", "-y", package]
+        env = os.environ.copy()
+        env["DEBIAN_FRONTEND"] = "noninteractive"
+        proc = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        logs = []
+        if proc.stdout:
+            for line in proc.stdout:
+                clean = line.strip()
+                if clean:
+                    logs.append(clean)
+                    _INSTALL_JOBS[package]["log"] = logs[-40:]
+        proc.wait()
+        if proc.returncode == 0:
+            _INSTALL_JOBS[package]["success"] = True
+            _INSTALL_JOBS[package]["log"].append(f"{action.capitalize()} complete successfully!")
+        else:
+            _INSTALL_JOBS[package]["error"] = f"apt-get exited with code {proc.returncode}"
+    except Exception as e:
+        _INSTALL_JOBS[package]["error"] = str(e)
+    finally:
+        _INSTALL_JOBS[package]["running"] = False
 
 
 class DisableRequest(BaseModel):
@@ -105,6 +274,145 @@ def _describe(mf: Path) -> dict | None:
     }
 
 
+def _get_ubuntu_apps_status() -> list[dict]:
+    res = []
+    for app in UBUNTU_CATALOG:
+        is_bin, bin_path = _is_binary_installed(app["binary"], app.get("fallback_binaries"))
+        is_pkg = _is_package_installed(app["package"])
+        if not is_pkg and "fallback_packages" in app:
+            is_pkg = any(_is_package_installed(p) for p in app["fallback_packages"])
+        installed = is_bin or is_pkg
+        job = _INSTALL_JOBS.get(app["package"], {})
+        res.append({
+            **app,
+            "installed": installed,
+            "binary_path": bin_path,
+            "can_launch": is_bin,
+            "installing": job.get("running", False),
+            "install_error": job.get("error", ""),
+            "install_success": job.get("success", False),
+        })
+    return res
+
+
+@router.get('/ubuntu/apps')
+def get_ubuntu_apps() -> dict:
+    """List curated Ubuntu applications with real installation and execution status."""
+    return {"apps": _get_ubuntu_apps_status()}
+
+
+@router.get('/ubuntu/search')
+def search_ubuntu_packages(q: str = "") -> dict:
+    """Search live Ubuntu package repositories using apt-cache with catalog fallback."""
+    q = q.strip().lower()
+    if not q or len(q) < 2:
+        return {"query": q, "results": []}
+    results = []
+    
+    # Try apt-cache first if available on Ubuntu
+    if shutil.which("apt-cache"):
+        try:
+            proc = subprocess.run(
+                ["apt-cache", "search", q],
+                capture_output=True, text=True, timeout=6
+            )
+            if proc.returncode == 0:
+                for line in proc.stdout.splitlines()[:40]:
+                    parts = line.split(" - ", 1)
+                    pkg_name = parts[0].strip()
+                    desc = parts[1].strip() if len(parts) > 1 else ""
+                    is_inst = _is_package_installed(pkg_name) or bool(shutil.which(pkg_name))
+                    results.append({
+                        "id": pkg_name,
+                        "name": pkg_name,
+                        "package": pkg_name,
+                        "description": desc,
+                        "installed": is_inst,
+                        "icon": "📦",
+                        "category": "Ubuntu Repositories",
+                    })
+                return {"query": q, "results": results}
+        except Exception as e:
+            log.debug("apt-cache search exception: %s", e)
+    
+    # Fallback to searching the curated catalog
+    for app in UBUNTU_CATALOG:
+        if q in app["name"].lower() or q in app["package"].lower() or q in app.get("description", "").lower() or q in app.get("category", "").lower():
+            is_bin, _ = _is_binary_installed(app["binary"], app.get("fallback_binaries"))
+            is_pkg = _is_package_installed(app["package"])
+            results.append({
+                **app,
+                "installed": is_bin or is_pkg,
+            })
+    return {"query": q, "results": results}
+
+
+class PackageActionRequest(BaseModel):
+    package: str = Field(..., description="Ubuntu apt package name")
+
+
+@router.post('/ubuntu/install')
+def install_ubuntu_package(req: PackageActionRequest, background_tasks: BackgroundTasks) -> dict:
+    """Install an Ubuntu application via apt-get in background."""
+    pkg = req.package.strip()
+    if not pkg:
+        raise HTTPException(400, "Package name required")
+    if _INSTALL_JOBS.get(pkg, {}).get("running"):
+        return {"status": "already_running", "package": pkg}
+    background_tasks.add_task(_run_apt_task, pkg, "install")
+    return {"status": "started", "package": pkg, "message": f"Installation of {pkg} started in background."}
+
+
+@router.post('/ubuntu/remove')
+def remove_ubuntu_package(req: PackageActionRequest, background_tasks: BackgroundTasks) -> dict:
+    """Remove an Ubuntu application via apt-get in background."""
+    pkg = req.package.strip()
+    if not pkg:
+        raise HTTPException(400, "Package name required")
+    if _INSTALL_JOBS.get(pkg, {}).get("running"):
+        return {"status": "already_running", "package": pkg}
+    background_tasks.add_task(_run_apt_task, pkg, "remove")
+    return {"status": "started", "package": pkg, "message": f"Removal of {pkg} started in background."}
+
+
+@router.get('/ubuntu/install-status/{package}')
+def get_install_status(package: str) -> dict:
+    """Poll background installation logs and status."""
+    return _INSTALL_JOBS.get(package, {"running": False, "success": False, "log": [], "error": ""})
+
+
+class LaunchNativeRequest(BaseModel):
+    binary: str = Field(..., description="Binary executable name")
+    args: Optional[list[str]] = Field(default_factory=list)
+
+
+@router.post('/ubuntu/launch')
+def launch_native_app(req: LaunchNativeRequest) -> dict:
+    """Launch native Linux/Ubuntu application on Wayland/XWayland display."""
+    bin_path = shutil.which(req.binary)
+    if not bin_path:
+        raise HTTPException(404, f"Binary '{req.binary}' not found on system PATH. Please install it first.")
+    
+    cmd = [bin_path] + (req.args or [])
+    env = os.environ.copy()
+    if "WAYLAND_DISPLAY" not in env:
+        env["WAYLAND_DISPLAY"] = "wayland-0"
+    if "DISPLAY" not in env:
+        env["DISPLAY"] = ":0"
+    
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return {"status": "ok", "pid": proc.pid, "message": f"Launched {req.binary}"}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to launch {req.binary}: {e}")
+
+
 @router.get('/list')
 def list_apps():
     disabled = _disabled()
@@ -117,14 +425,16 @@ def list_apps():
             continue
         described['disabled'] = described['id'] in disabled
         apps.append(described)
+    
+    ubuntu_apps = _get_ubuntu_apps_status()
+    
     return {
         'apps': apps,
         'unreadable_manifests': unreadable,
-        # No remote repository exists yet (Phase 16). Say so rather than
-        # returning an empty list that looks like "nothing available".
-        'available_to_install': [],
-        'repository': None,
-        'note': 'All apps ship with the OS. Remote install arrives in Phase 16.',
+        'available_to_install': [a for a in ubuntu_apps if not a.get('installed')],
+        'ubuntu_apps': ubuntu_apps,
+        'repository': 'Ubuntu 24.04 LTS Noble Repositories',
+        'note': f"{len(apps)} TV apps built-in • {len(ubuntu_apps)} Ubuntu apps available in catalog",
     }
 
 
