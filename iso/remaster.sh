@@ -144,6 +144,7 @@ fi
 #
 # Needs ~2.4G in WORK_DIR during the build; freed again afterwards.
 FULL_TREE="$WORK_DIR/fulltree"
+chmod -R u+w "$FULL_TREE" 2>/dev/null || true
 rm -rf "$FULL_TREE" 2>/dev/null || true
 mkdir -p "$FULL_TREE"
 echo "Extracting full base ISO tree (includes the ~2.4G squashfs) ..."
