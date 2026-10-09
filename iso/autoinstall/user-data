@@ -28,19 +28,6 @@ autoinstall:
     username: htpc
     password: $6$tvtv2026$dbd.bIB6vHtdfhOgQvdigyFFvnyTlomCarkjxFMO3SdVw0Hi1fqzh7UzLQoojVDKOFKYDk6jyuiZjtqfqCnWk1
     realname: HTPC User
-    groups:
-    - adm
-    - cdrom
-    - dip
-    - plugdev
-    - sudo
-    - video
-    - render
-    - audio
-    - input
-    - nopasswdlogin
-    - dialout
-    - uinput
   ssh:
     allow-pw: true
     install-server: true
