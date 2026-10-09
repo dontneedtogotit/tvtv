@@ -41,7 +41,6 @@ autoinstall:
     - nopasswdlogin
     - dialout
     - uinput
-    shell: /bin/bash
   ssh:
     allow-pw: true
     install-server: true
