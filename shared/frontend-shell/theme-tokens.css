@@ -14,12 +14,17 @@
   --border-bright: #2d4566;
   --accent: #00d2ff;
   --accent2: #38bdf8;
+  --accent-rgb: 0, 210, 255;
   --accent-soft: rgba(0, 210, 255, 0.15);
   --accent-glow: rgba(0, 210, 255, 0.4);
+  --surface2: #16243b;
+  --surface3: #1e314f;
   --text: #f1f5f9;
   --text-strong: #ffffff;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --muted: #64748b;
+  --muted-2: #475569;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -72,12 +77,17 @@
   --surface-hover: #1e314f;
   --surface-active: #243b5e;
   --surface-glass: rgba(17, 28, 46, 0.75);
+  --surface2: #16243b;
+  --surface3: #1e314f;
   --border: #1e2f47;
   --border-bright: #2d4566;
   --accent: #00d2ff;
   --accent2: #38bdf8;
+  --accent-rgb: 0, 210, 255;
   --accent-soft: rgba(0, 210, 255, 0.15);
   --accent-glow: rgba(0, 210, 255, 0.4);
+  --muted: #64748b;
+  --muted-2: #475569;
 }
 
 /* 2. Midnight Sapphire */
@@ -90,12 +100,17 @@
   --surface-hover: #1a2947;
   --surface-active: #21355c;
   --surface-glass: rgba(14, 22, 38, 0.75);
+  --surface2: #131e33;
+  --surface3: #1a2947;
   --border: #1c2b45;
   --border-bright: #2a3e63;
   --accent: #38bdf8;
   --accent2: #60a5fa;
+  --accent-rgb: 56, 189, 248;
   --accent-soft: rgba(56, 189, 248, 0.16);
   --accent-glow: rgba(56, 189, 248, 0.42);
+  --muted: #64748b;
+  --muted-2: #475569;
 }
 
 /* 3. OLED Pitch Black */
@@ -108,12 +123,17 @@
   --surface-hover: #1e1e1e;
   --surface-active: #2a2a2a;
   --surface-glass: rgba(10, 10, 10, 0.85);
+  --surface2: #121212;
+  --surface3: #1e1e1e;
   --border: #222222;
   --border-bright: #3a3a3a;
   --accent: #ffffff;
   --accent2: #cccccc;
+  --accent-rgb: 255, 255, 255;
   --accent-soft: rgba(255, 255, 255, 0.15);
   --accent-glow: rgba(255, 255, 255, 0.4);
+  --muted: #888888;
+  --muted-2: #555555;
 }
 
 /* 4. Cyberpunk Neon */
@@ -126,12 +146,17 @@
   --surface-hover: #2f1754;
   --surface-active: #3e1f6e;
   --surface-glass: rgba(26, 11, 48, 0.75);
+  --surface2: #23103f;
+  --surface3: #2f1754;
   --border: #35195e;
   --border-bright: #4d2688;
   --accent: #ff007f;
   --accent2: #00f3ff;
+  --accent-rgb: 255, 0, 127;
   --accent-soft: rgba(255, 0, 127, 0.18);
   --accent-glow: rgba(255, 0, 127, 0.45);
+  --muted: #8c71b0;
+  --muted-2: #5f4284;
 }
 
 /* 5. Sunset Amber */
@@ -144,12 +169,17 @@
   --surface-hover: #382c21;
   --surface-active: #47382a;
   --surface-glass: rgba(31, 24, 18, 0.75);
+  --surface2: #2a2119;
+  --surface3: #382c21;
   --border: #3d3024;
   --border-bright: #544332;
   --accent: #f59e0b;
   --accent2: #fbbf24;
+  --accent-rgb: 245, 158, 11;
   --accent-soft: rgba(245, 158, 11, 0.16);
   --accent-glow: rgba(245, 158, 11, 0.4);
+  --muted: #9c8a78;
+  --muted-2: #6b5a4a;
 }
 
 /* 6. Nordic Emerald */
@@ -162,12 +192,17 @@
   --surface-hover: #19452f;
   --surface-active: #20573c;
   --surface-glass: rgba(12, 38, 25, 0.75);
+  --surface2: #123322;
+  --surface3: #19452f;
   --border: #1d4d35;
   --border-bright: #296b49;
   --accent: #10b981;
   --accent2: #34d399;
+  --accent-rgb: 16, 185, 129;
   --accent-soft: rgba(16, 185, 129, 0.16);
   --accent-glow: rgba(16, 185, 129, 0.4);
+  --muted: #6e9480;
+  --muted-2: #486e58;
 }
 
 /* 7. Retro Synthwave */
@@ -180,12 +215,17 @@
   --surface-hover: #371e66;
   --surface-active: #472782;
   --surface-glass: rgba(30, 16, 56, 0.75);
+  --surface2: #29164d;
+  --surface3: #371e66;
   --border: #3b206e;
   --border-bright: #522d99;
   --accent: #c084fc;
   --accent2: #f472b6;
+  --accent-rgb: 192, 132, 252;
   --accent-soft: rgba(192, 132, 252, 0.18);
   --accent-glow: rgba(192, 132, 252, 0.42);
+  --muted: #957cb8;
+  --muted-2: #664d8a;
 }
 
 /* 8. Crimson Cinema */
@@ -198,12 +238,17 @@
   --surface-hover: #2b2b33;
   --surface-active: #383842;
   --surface-glass: rgba(22, 22, 26, 0.75);
+  --surface2: #1f1f24;
+  --surface3: #2b2b33;
   --border: #2c2c36;
   --border-bright: #3f3f4d;
   --accent: #e50914;
   --accent2: #ff3838;
+  --accent-rgb: 229, 9, 20;
   --accent-soft: rgba(229, 9, 20, 0.16);
   --accent-glow: rgba(229, 9, 20, 0.4);
+  --muted: #8c8282;
+  --muted-2: #5c5454;
 }
 
 /* ── Base Reset & TV Ergonomics ─────────────────────────────────────────────── */

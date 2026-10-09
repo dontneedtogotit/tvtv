@@ -59,6 +59,7 @@ def set_now_playing_state(state: PlaybackState) -> None:
 
 
 @router.get('/now-playing')
+@router.get('/api/playback/now-playing')
 def now_playing():
     return _read_json(NOW_PLAYING_PATH)
 

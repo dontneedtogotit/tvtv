@@ -55,6 +55,36 @@ class PowerActionRequest(BaseModel):
     action: str = Field(..., description="'sleep', 'suspend', 'reboot', 'shutdown', 'restart_ui', 'restart_backend'")
 
 
+def _run_privileged(cmd: list[str], timeout: int = 10) -> tuple[bool, str]:
+    """Run a command that may need elevated privileges, reporting honestly.
+
+    Tries the command directly first (backend may already be privileged or the
+    action may be user-scoped), then falls back to passwordless sudo (the
+    appliance sudoers drop-in grants NOPASSWD to the appliance user). Returns
+    (ok, detail) so callers surface real failures instead of reporting success
+    for a command that never ran.
+    """
+
+    def _attempt(c: list[str]) -> tuple[int, str]:
+        try:
+            p = subprocess.run(c, capture_output=True, text=True, timeout=timeout)
+            return p.returncode, (p.stderr or p.stdout or "").strip()[:300]
+        except FileNotFoundError:
+            return 127, f"command not found: {c[0]}"
+        except subprocess.TimeoutExpired:
+            return 124, f"timed out: {' '.join(c)}"
+
+    rc, detail = _attempt(cmd)
+    if rc == 0:
+        return True, "ok"
+    if shutil.which("sudo"):
+        rc2, detail2 = _attempt(["sudo", "-n", *cmd])
+        if rc2 == 0:
+            return True, "ok (via sudo)"
+        return False, f"{cmd[0]} failed: {detail2 or detail}"
+    return False, f"{cmd[0]} failed (no privilege escalation available): {detail}"
+
+
 def _get_local_ips() -> list[str]:
     """Return non-loopback IPv4 addresses."""
     ips: list[str] = []
@@ -364,28 +394,50 @@ def export_diagnostics(request: Request) -> dict[str, Any]:
 
 @router.post("/power")
 def power_action(req: PowerActionRequest, request: Request) -> dict[str, Any]:
-    """Execute power and session actions (sleep, reboot, shutdown, restart UI)."""
+    """Execute power and session actions (sleep, reboot, shutdown, restart UI).
+
+    Privileged actions are executed synchronously with exit-status checks so a
+    failed escalation surfaces as 500 instead of a silent fake success.
+    """
     verify_client_access(request)
     act = req.action.lower().strip()
 
-    if act in ("sleep", "suspend"):
-        subprocess.Popen(["systemctl", "suspend"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return {"status": "ok", "action": "suspend", "message": "Entering sleep mode..."}
+    # User-scoped actions (no privilege needed).
+    if act == "restart_ui":
+        ok, detail = _run_privileged(["pkill", "-HUP", "labwc"])
+        if ok or detail == "":  # pkill exits 1 with no output when nothing matched
+            return {"status": "ok", "action": "restart_ui", "message": "Restarting graphical shell..."}
+        raise HTTPException(500, f"restart_ui failed: {detail}")
 
-    elif act == "reboot":
-        subprocess.Popen(["systemctl", "reboot"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return {"status": "ok", "action": "reboot", "message": "Rebooting HTPC OS..."}
-
-    elif act in ("shutdown", "poweroff"):
-        subprocess.Popen(["systemctl", "poweroff"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return {"status": "ok", "action": "poweroff", "message": "Shutting down HTPC OS..."}
-
-    elif act == "restart_ui":
-        subprocess.Popen(["pkill", "-HUP", "labwc"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return {"status": "ok", "action": "restart_ui", "message": "Restarting graphical shell..."}
-
-    elif act == "restart_backend":
-        subprocess.Popen(["systemctl", "restart", "tvtv-yt.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if act == "restart_backend":
+        ok, detail = _run_privileged(["systemctl", "restart", "tvtv-yt.service"])
+        if not ok:
+            # Fallback: the backend may be running unmanaged (autostart
+            # watchdog restarts it). Delay so this response goes out first —
+            # killing the backend from inside itself would drop the reply.
+            subprocess.Popen(
+                ["bash", "-c", "sleep 0.5 && pkill -f 'uvicorn.*server:app'"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         return {"status": "ok", "action": "restart_backend", "message": "Restarting backend service..."}
 
-    raise HTTPException(400, f"Unsupported power action: {act}")
+    # Privileged power actions.
+    plan = {
+        "sleep": (["systemctl", "suspend"], "suspend", "Entering sleep mode..."),
+        "suspend": (["systemctl", "suspend"], "suspend", "Entering sleep mode..."),
+        "reboot": (["systemctl", "reboot"], "reboot", "Rebooting HTPC OS..."),
+        "shutdown": (["systemctl", "poweroff"], "poweroff", "Shutting down HTPC OS..."),
+        "poweroff": (["systemctl", "poweroff"], "poweroff", "Shutting down HTPC OS..."),
+    }.get(act)
+    if plan is None:
+        raise HTTPException(400, f"Unsupported power action: {act}")
+
+    cmd, label, message = plan
+    # Run synchronously (not Popen): systemctl returns immediately after
+    # arming the power action, but the exit code tells us whether it worked.
+    ok, detail = _run_privileged(cmd, timeout=20)
+    if not ok:
+        log.error("power action %s failed: %s", label, detail)
+        raise HTTPException(500, f"Power action '{act}' failed: {detail}")
+    return {"status": "ok", "action": label, "message": message, "detail": detail}

@@ -118,10 +118,26 @@ if command -v swaybg >/dev/null 2>&1; then
   swaybg -c '#060a12' >/dev/null 2>&1 &
 fi
 
-# 2. TV Display Resolution
-if [ -n "${WLR_OUTPUT:-}" ] && [ -n "${WLR_MODE:-}" ]; then
-  if command -v wlr-randr >/dev/null 2>&1; then
-    wlr-randr --output "$WLR_OUTPUT" --mode "$WLR_MODE" >/dev/null 2>&1 || true
+# 2. TV Display Resolution.
+# The profile's WLR_OUTPUT may not match the hardware (a NUC wired over HDMI
+# reports DP-1, not HDMI-A-1), so fall back to the first enabled output and
+# persist the detected name to tv.conf so reboots stay stable.
+if command -v wlr-randr >/dev/null 2>&1; then
+  _out="${WLR_OUTPUT:-}"
+  if [ -z "$_out" ] || ! wlr-randr 2>/dev/null | grep -q " ${_out} "; then
+    # wlr-randr output: name lines start at column 0, properties are indented.
+    _out=$(wlr-randr 2>/dev/null | awk '!/^ / && NF { name = $1 } /^  Enabled: yes/ { if (name != "") { print name; exit } }')
+  fi
+  if [ -n "$_out" ]; then
+    if [ -n "${WLR_MODE:-}" ]; then
+      # --mode best = the TV's preferred mode; used when the profile's mode
+      # is absent from the EDID list (wlr-randr errors on unknown modes).
+      wlr-randr --output "$_out" --mode "${WLR_MODE}" >/dev/null 2>&1 || \
+        wlr-randr --output "$_out" --mode best >/dev/null 2>&1 || true
+    fi
+    if [ "$_out" != "${WLR_OUTPUT:-}" ] && [ -f "${HOME}/.config/tvtv/tv.conf" ]; then
+      sed -i "s|^export WLR_OUTPUT=.*|export WLR_OUTPUT=\"${_out}\"|" "${HOME}/.config/tvtv/tv.conf" 2>/dev/null || true
+    fi
   fi
 fi
 

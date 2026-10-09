@@ -2,82 +2,173 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Now Playing</title>
+<title>tvtv Now Playing HUD</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
 <style>
-  :root {
-    --bg: #0d0d0d;
-    --surface: #161616;
-    --border: #2a2a2a;
-    --accent: #ff0033;
-    --text: #f0f0f0;
-    --muted: #888888;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     background: var(--bg);
     color: var(--text);
-    font-family: "Segoe UI", Arial, sans-serif;
-    font-size: 20px;
+    font-family: var(--font);
+    font-size: var(--fs-base-px, 20px);
     height: 100%;
     margin: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
     user-select: none;
+    overflow: hidden;
   }
-  #title { font-size: 1.4rem; font-weight: 700; }
-  #status { color: var(--muted); }
-  .pad {
-    width: 300px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+  .hud-card {
+    background: var(--surface-card);
+    border: 2px solid var(--border-bright);
+    border-radius: var(--radius-lg);
+    padding: 36px 48px;
+    max-width: 680px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 24px var(--accent-soft);
+    text-align: center;
+  }
+  #thumb {
+    width: 240px;
+    height: 135px;
+    border-radius: var(--radius);
+    object-fit: cover;
+    background: #000;
+    border: 1px solid var(--border-subtle);
+    display: none;
+  }
+  #title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-strong);
+    line-height: 1.3;
+  }
+  #channel {
+    font-size: 1rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  #time {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+  }
+  .track {
+    width: 100%;
+    height: 6px;
+    background: var(--surface-hover);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .track > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .controls {
+    display: flex;
     gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
   }
   button {
     background: var(--surface);
     color: var(--text);
     border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
     font-size: 1rem;
+    font-weight: 700;
     cursor: pointer;
+    transition: all var(--transition);
   }
-  button:active { border-color: var(--accent); background: #222; }
+  button:hover, button:focus {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+    outline: none;
+  }
+  button.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
 </style>
 </head>
 <body>
-  <div id="title">Now Playing</div>
-  <div id="status">Waiting for playback...</div>
-  <div class="pad">
-    <div></div>
-    <button data-action="pause">Pause</button>
-    <div></div>
-    <button data-action="seek-10"><< 10s</button>
-    <button data-action="fullscreen">FS</button>
-    <button data-action="seek+10">10s >></button>
-    <div></div>
-    <button data-action="stop">Stop</button>
-    <div></div>
+  <div class="hud-card">
+    <img id="thumb" alt="Thumbnail" />
+    <div id="title">Now Playing</div>
+    <div id="channel">Waiting for playback…</div>
+    <div class="track"><i id="bar"></i></div>
+    <div id="time">0:00 / 0:00</div>
+    <div class="controls">
+      <button data-action="seek-10">⏪ 10s</button>
+      <button data-action="pause" class="primary">⏯ Play/Pause</button>
+      <button data-action="seek+10">10s ⏩</button>
+      <button data-action="fullscreen">⛶ Fullscreen</button>
+      <button data-action="stop" style="color:var(--danger); border-color:var(--danger);">⏹ Stop</button>
+    </div>
   </div>
+
   <script>
-    const API = ''; // relative to serving origin (works on LAN remote too)
-    const status = document.getElementById('status');
+    const API = '';
+    const titleEl = document.getElementById('title');
+    const channelEl = document.getElementById('channel');
+    const thumbEl = document.getElementById('thumb');
+    const timeEl = document.getElementById('time');
+    const barEl = document.getElementById('bar');
+
     document.querySelectorAll('button[data-action]').forEach(btn => {
       btn.addEventListener('click', async () => {
         try {
-          const r = await fetch(`${API}/api/control`, {
+          await fetch(`${API}/api/control`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: btn.dataset.action })
+            body: JSON.stringify({ action: btn.dataset.action })
           });
-          const data = await r.json();
-          status.textContent = data.status || 'ok';
-        } catch (e) {
-          status.textContent = 'error';
-        }
+          sync();
+        } catch (e) {}
       });
     });
+
+    async function sync() {
+      try {
+        const [pos, s] = await Promise.all([
+          fetch(`${API}/api/position`).then(r => r.json()).catch(() => null),
+          fetch(`${API}/api/playback/now-playing`).then(r => r.json()).catch(() => null)
+        ]);
+        if (pos && pos.playing && pos.time != null) {
+          if (s && s.title) titleEl.textContent = s.title;
+          if (s && s.channel) channelEl.textContent = s.channel;
+          if (s && s.thumbnail) {
+            thumbEl.src = s.thumbnail;
+            thumbEl.style.display = 'block';
+          }
+          const cur = Math.round(pos.time || 0);
+          const tot = Math.round(pos.duration || 0);
+          timeEl.textContent = `${Math.floor(cur/60)}:${String(cur%60).padStart(2,'0')} / ${Math.floor(tot/60)}:${String(tot%60).padStart(2,'0')}${pos.paused ? ' • PAUSED' : ''}`;
+          barEl.style.width = tot > 0 ? ((cur / tot) * 100) + '%' : '0%';
+        } else {
+          titleEl.textContent = 'Idle';
+          channelEl.textContent = 'Nothing currently playing';
+          thumbEl.style.display = 'none';
+          timeEl.textContent = '0:00 / 0:00';
+          barEl.style.width = '0%';
+        }
+      } catch (e) {}
+    }
+    setInterval(sync, 2500);
+    sync();
   </script>
 </body>
 </html>

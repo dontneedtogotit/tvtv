@@ -2,76 +2,251 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Media Library</title>
+<title>tvtv Media Library</title>
+<link rel="stylesheet" href="/shared/frontend-shell/theme-tokens.css" />
 <style>
-  :root {
-    --bg: #0d0d0d;
-    --surface: #161616;
-    --border: #2a2a2a;
-    --accent: #ff0033;
-    --text: #f0f0f0;
-    --muted: #888888;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
+    height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: "Segoe UI", Arial, sans-serif;
-    font-size: 20px;
-    height: 100%;
-    margin: 0;
+    font-family: var(--font);
+    font-size: var(--fs-base-px, 20px);
+    overflow: hidden;
     user-select: none;
   }
   header {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    justify-content: space-between;
+    padding: 18px 32px;
+    background: var(--surface-glass);
+    backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
   }
-  #logo { font-weight: 900; color: var(--accent); font-size: 1.4rem; cursor: pointer; }
-  #content { padding: 18px 24px; overflow: auto; height: calc(100% - 72px); }
-  .row { display: flex; flex-wrap: wrap; gap: 18px; }
-  .tile {
-    width: 200px;
-    background: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .brand {
+    font-weight: 900;
+    font-size: 1.4rem;
+    color: var(--accent);
     cursor: pointer;
-    transition: transform .12s, border-color .12s;
   }
-  .tile:hover, .tile.focused { border-color: var(--accent); transform: translateY(-2px); }
-  .name { font-weight: 700; font-size: 0.95rem; margin-top: 8px; }
-  .meta { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  .app-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .btn-nav {
+    background: var(--surface-card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .btn-nav:hover, .btn-nav:focus {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+    outline: none;
+  }
+  #content {
+    padding: 28px 32px;
+    overflow-y: auto;
+    height: calc(100% - 74px);
+  }
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-strong);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+  .media-card {
+    background: var(--surface-card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    outline: none;
+  }
+  .media-card:hover, .media-card:focus, .media-card.focused {
+    border-color: var(--accent);
+    transform: var(--lift);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.5), 0 0 16px var(--accent-soft);
+    background: var(--surface-hover);
+  }
+  .media-ico {
+    font-size: 2.2rem;
+    line-height: 1;
+  }
+  .media-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--text-strong);
+    word-break: break-word;
+    line-height: 1.3;
+  }
+  .media-meta {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .empty-state .ico { font-size: 3rem; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface-card);
+    border: 2px solid var(--accent);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    z-index: 100;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head>
 <body>
   <header>
-    <div id="logo">tvtv</div>
-    <div>Media Library</div>
+    <div class="header-left">
+      <div class="brand" id="btn-back" tabindex="0">← Back</div>
+      <div class="app-title">🎬 Local Media Library</div>
+    </div>
+    <div class="header-right">
+      <button class="btn-nav" id="btn-rescan" tabindex="0">🔄 Rescan ~/media</button>
+    </div>
   </header>
+
   <div id="content">
-    <div class="row" id="grid"></div>
+    <div class="section-title"><span>📂</span> Local Movies, Series & Videos</div>
+    <div class="grid" id="grid">
+      <div class="empty-state">
+        <div class="ico">⏳</div>
+        <div>Scanning local storage...</div>
+      </div>
+    </div>
   </div>
+
+  <div id="toast" style="display:none;" class="toast"></div>
+
   <script type="module">
     import { initFocusNav } from '/shared/frontend-shell/focus-nav.js';
     initFocusNav(document);
-    const API = ''; // relative to serving origin (works on LAN remote too)
+
+    const API = '';
     const grid = document.getElementById('grid');
-    async function load() {
-      const r = await fetch(`${API}/apps/media-library/scan`);
-      const data = await r.json();
-      grid.innerHTML = '';
-      for (const item of (data.items || [])) {
-        const el = document.createElement('div');
-        el.className = 'tile';
-        el.tabIndex = 0;
-        el.innerHTML = `<div class="name">${item.name}</div><div class="meta">${item.type}</div>`;
-        el.addEventListener('click', () => alert(item.path));
-        grid.appendChild(el);
+    const toast = document.getElementById('toast');
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2800);
+    }
+
+    async function playItem(item) {
+      showToast(`Launching: ${item.name}`);
+      try {
+        await fetch(`${API}/api/play`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: item.path,
+            title: item.name,
+            fullscreen: true
+          })
+        });
+      } catch (e) {
+        showToast('Failed to start playback.');
       }
     }
+
+    async function load() {
+      try {
+        const r = await fetch(`${API}/apps/media-library/scan`);
+        const data = await r.json();
+        const items = data.items || [];
+        grid.innerHTML = '';
+        if (!items.length) {
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1;">
+              <div class="ico">📭</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">No media files found</div>
+              <div>Place video or audio files into <code style="color:var(--accent);">~/media</code> or connect an external USB drive.</div>
+            </div>`;
+          return;
+        }
+        for (const item of items) {
+          const isDir = item.type === 'directory';
+          const el = document.createElement('div');
+          el.className = 'media-card';
+          el.tabIndex = 0;
+          el.innerHTML = `
+            <div class="media-ico">${isDir ? '📁' : '🎞️'}</div>
+            <div class="media-name">${item.name}</div>
+            <div class="media-meta">${item.path}</div>
+          `;
+          el.addEventListener('click', () => {
+            if (!isDir) playItem(item);
+          });
+          grid.appendChild(el);
+        }
+      } catch (e) {
+        grid.innerHTML = `<div class="empty-state" style="color:var(--danger);"><div class="ico">⚠️</div><div>Failed to scan local media library</div></div>`;
+      }
+    }
+
+    document.getElementById('btn-rescan').addEventListener('click', () => {
+      showToast('Rescanning ~/media…');
+      load();
+    });
+
+    document.getElementById('btn-back').addEventListener('click', () => {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage('tvtv:back', '*');
+      } else {
+        window.location.href = '/';
+      }
+    });
+
     load();
   </script>
 </body>
