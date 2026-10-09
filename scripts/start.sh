@@ -26,6 +26,14 @@ else
   fi
 fi
 
+# MPV resolves yt-dlp via find_in_path(PATH) — it has no --ytdl-path option.
+# The project venv ships a current yt-dlp (the apt one is far too old to parse
+# YouTube). Prepend the venv bin to PATH so MPV's ytdl_hook resolves the fresh
+# binary instead of a stale /usr/bin/yt-dlp (which hangs → mpv exits 2).
+if [ -d "$VENV/bin" ]; then
+  export PATH="$VENV/bin:$PATH"
+fi
+
 cd "$PROJECT_DIR"
 exec "${UVICORN_CMD[@]}" server:app \
   --app-dir "$BACKEND_DIR" \

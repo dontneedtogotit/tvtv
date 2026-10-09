@@ -113,6 +113,24 @@
       </div>
 
       <button id="save">Save Settings</button>
+
+      <div class="field" style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px;">
+        <label>YouTube Account</label>
+        <div class="desc">Log in so age-restricted and account-only videos play. Cookies are stored
+          on this device and sent to yt-dlp for YouTube playback only.</div>
+        <div id="yt-status" class="desc" style="font-weight:700;">Checking…</div>
+        <button id="yt-import">Import from kiosk browser</button>
+        <div class="desc" style="margin-top:8px;">Or paste a cookies.txt exported from any logged-in browser
+          (extension: “Get cookies.txt LOCALLY” → Save), then:</div>
+        <textarea id="yt-text" rows="4" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com  TRUE  /  FALSE  1234567890  SID  abc…"
+          style="width:100%; box-sizing:border-box; background:var(--surface); color:var(--text);
+                 border:2px solid var(--border); border-radius:var(--radius-md); padding:10px 14px;
+                 font-family:'SF Mono', monospace; font-size:0.85rem; user-select:text;"></textarea>
+        <button id="yt-save">Save cookies</button>
+        <button id="yt-verify">Verify login</button>
+        <button id="yt-clear">Sign out</button>
+      </div>
+
       <div id="status"></div>
     </div>
   </div>
@@ -168,6 +186,81 @@
       }
     });
     load();
+
+    // ---- YouTube account (P9 login) ----
+    const ytStatus = document.getElementById('yt-status');
+    const ytText = document.getElementById('yt-text');
+
+    async function ytLoad() {
+      try {
+        const r = await fetch(`${API}/api/youtube/status`);
+        const s = await r.json();
+        if (s.cookies_present) {
+          ytStatus.textContent = s.logged_in
+            ? `Signed in as ${s.account || 'account'}`
+            : 'Cookies saved (no YouTube session detected)';
+        } else {
+          ytStatus.textContent = 'Not signed in.';
+        }
+      } catch (e) {
+        ytStatus.textContent = 'Sign-in status unavailable.';
+      }
+    }
+
+    document.getElementById('yt-import').addEventListener('click', async () => {
+      ytStatus.textContent = 'Importing from kiosk browser…';
+      try {
+        const r = await fetch(`${API}/api/youtube/import`, { method: 'POST' });
+        const s = await r.json();
+        ytStatus.textContent = s.ok
+          ? `Imported ${s.cookies} cookies (${s.youtube} YouTube/Google) from ${s.profile}`
+          : 'Import failed: ' + (s.detail || 'unknown error');
+      } catch (e) {
+        ytStatus.textContent = 'Import failed: ' + e.message;
+      }
+      ytLoad();
+    });
+
+    document.getElementById('yt-save').addEventListener('click', async () => {
+      try {
+        const r = await fetch(`${API}/api/youtube/cookies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: ytText.value }),
+        });
+        const s = await r.json();
+        ytStatus.textContent = s.ok
+          ? `Saved ${s.cookies} cookies.`
+          : 'Save failed: ' + (s.detail || 'empty text');
+        if (s.ok) ytText.value = '';
+      } catch (e) {
+        ytStatus.textContent = 'Save failed: ' + e.message;
+      }
+      ytLoad();
+    });
+
+    document.getElementById('yt-verify').addEventListener('click', async () => {
+      ytStatus.textContent = 'Verifying…';
+      try {
+        const r = await fetch(`${API}/api/youtube/verify`, { method: 'POST' });
+        const s = await r.json();
+        ytStatus.textContent = s.logged_in
+          ? `Signed in as ${s.account || 'account'}`
+          : 'Not logged in: ' + (s.detail || 'no session in cookies');
+      } catch (e) {
+        ytStatus.textContent = 'Verify failed: ' + e.message;
+      }
+    });
+
+    document.getElementById('yt-clear').addEventListener('click', async () => {
+      try {
+        await fetch(`${API}/api/youtube/cookies`, { method: 'DELETE' });
+      } catch (e) {}
+      ytText.value = '';
+      ytLoad();
+    });
+
+    ytLoad();
   </script>
 </body>
 </html>

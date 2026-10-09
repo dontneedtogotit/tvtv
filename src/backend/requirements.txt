@@ -2,3 +2,9 @@ fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.10.0
 httpx
+# MPV's ytdl_hook shells out to yt-dlp on PATH; this venv copy stays current
+# (the apt package lags YouTube changes and breaks playback).
+yt-dlp>=2026.1.1
+# cryptography: yt-dlp needs it to read Chromium's encrypted cookie DB when
+# logging into YouTube from the kiosk browser profile (--cookies-from-browser).
+cryptography

@@ -60,6 +60,10 @@ autoinstall:
   - python3-pip
   - mpv
   - yt-dlp
+  # yt-dlp is more reliable with a JS runtime (used by the ytdl_hook for
+  # some extractors); mpv itself works without one but extraction quality
+  # improves with it present.
+  - nodejs
   - labwc
   - cage
   - swaybg

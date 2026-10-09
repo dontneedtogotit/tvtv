@@ -25,6 +25,22 @@ log = logging.getLogger('tvtv.player')
 
 MPV_BIN = shutil.which("mpv") or "mpv"
 
+# MPV's stderr used to go to DEVNULL — every failure was a black box (the
+# whole "crash with exit 2" hunt was caused by that). Log it instead.
+MPV_LOG_DIR = Path(__file__).resolve().parent.parent.parent / 'logs'
+MPV_STDERR_LOG = MPV_LOG_DIR / 'mpv-stderr.log'
+
+
+def _mpv_stderr() -> "subprocess._FILE":
+    try:
+        MPV_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        f = open(MPV_STDERR_LOG, 'a', buffering=1)
+        f.write(f"--- mpv launch {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+        return f
+    except Exception as e:  # noqa: BLE001 - never block playback on logging
+        log.debug("stderr log unavailable: %s", e)
+        return subprocess.DEVNULL
+
 
 class PlayerManager:
     def __init__(self) -> None:
@@ -48,7 +64,7 @@ class PlayerManager:
         except Exception:
             pass
 
-        if self.is_running:
+        if self._process and self.is_running:
             try:
                 send_command("quit")
                 # Wait briefly for clean exit
@@ -62,6 +78,13 @@ class PlayerManager:
         if self._process and self.is_running:
             try:
                 self._process.terminate()
+            except Exception:
+                pass
+        # Reap whatever remains so mpv doesn't linger as an unkillable
+        # zombie (the backend is its parent; only wait() collects it).
+        if self._process is not None:
+            try:
+                self._process.wait(timeout=3)
             except Exception:
                 pass
 
@@ -84,7 +107,7 @@ class PlayerManager:
             self._process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=_mpv_stderr(),
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,
             )
@@ -122,6 +145,14 @@ class PlayerManager:
             "--demuxer-max-back-bytes=25M",
             "--input-ipc-server=" + IPC_SOCKET,
         ]
+
+        # YouTube account: hand stored cookies to the yt-dlp hook so
+        # age-restricted / signed-in-only content resolves (P9 YouTube login).
+        try:
+            from youtube_auth import mpv_cookie_args
+            base_cmd += mpv_cookie_args()
+        except Exception as e:  # noqa: BLE001 - never block playback on auth
+            log.debug("cookie args unavailable: %s", e)
 
         # Base args (including hwdec from profile)
         args = mpv_args()
@@ -252,6 +283,12 @@ class PlayerManager:
             # Player process ended
             exit_code = self._process.poll()
             log.info("MPV process ended with code %s", exit_code)
+            # Reap so a normally-finished video (natural exit 0) doesn't
+            # accumulate as an unkillable zombie child of the backend.
+            try:
+                self._process.wait(timeout=2)
+            except Exception:
+                pass
             self._process = None
             self._current_url = None
             set_now_playing_state(PS(
