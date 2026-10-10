@@ -6,8 +6,6 @@ autoinstall:
   keyboard:
     layout: us
     variant: ''
-  interactive-sections:
-  - network
   storage:
     layout:
       name: direct
