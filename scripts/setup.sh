@@ -253,6 +253,18 @@ if [ -n "${KILO_API_KEY:-}" ]; then
   echo "  KILO_API_KEY injected into tvtv-yt.service for agentic AI assistant"
 fi
 
+# Stage credentials.json (Kilo API key, etc.) from the baked repo into the
+# appliance user's config dir so the AI assistant's credentials loader finds it.
+CRED_SRC="$PROJECT_DIR/config/credentials.json"
+CRED_DST="/home/$HTPC_USER/.config/tvtv/credentials.json"
+if [ -f "$CRED_SRC" ]; then
+  mkdir -p "$(dirname "$CRED_DST")"
+  cp "$CRED_SRC" "$CRED_DST"
+  chmod 0600 "$CRED_DST"
+  chown "$HTPC_USER:$HTPC_USER" "$CRED_DST"
+  echo "  Staged credentials.json for Kilo AI assistant"
+fi
+
 # Ydotoold service
 HTPC_UID="$(id -u "$HTPC_USER" 2>/dev/null || echo 1000)"
 HTPC_GID="$(id -g "$HTPC_USER" 2>/dev/null || echo 1000)"

@@ -24,6 +24,7 @@ config/settings.json
 # Env / secrets
 .env
 .env.local
+config/credentials.json
 
 # OS
 .DS_Store

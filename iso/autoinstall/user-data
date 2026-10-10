@@ -6,16 +6,8 @@ autoinstall:
   keyboard:
     layout: us
     variant: ''
-  network:
-    network:
-      version: 2
-      ethernets:
-        default:
-          match:
-            name: e*
-          dhcp4: true
-          dhcp6: false
-      optional: true
+  interactive-sections:
+  - network
   storage:
     layout:
       name: direct
