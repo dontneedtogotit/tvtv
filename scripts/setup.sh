@@ -42,6 +42,58 @@ $HTPC_USER ALL=(ALL) NOPASSWD: ALL
 EOF
 chmod 0440 /etc/sudoers.d/90-tvtv
 
+# ── 1b. Install Desktop/Media Packages (needs network) ────────────────────────
+# The autoinstall only seeds a minimal base system from the ISO pool. Pull the
+# full appliance stack once the target has a live network connection.
+echo "Installing appliance packages (this needs internet) ..."
+apt-get update -q 2>/dev/null || true
+apt-get install -y --no-install-recommends \
+  linux-firmware \
+  linux-generic-hwe-24.04 \
+  intel-microcode \
+  iucode-tool \
+  thermald \
+  lm-sensors \
+  curl \
+  wget \
+  git \
+  python3 \
+  python3-venv \
+  python3-pip \
+  mpv \
+  yt-dlp \
+  nodejs \
+  labwc \
+  cage \
+  swaybg \
+  polkitd \
+  seatd \
+  dbus-x11 \
+  xwayland \
+  mesa-va-drivers \
+  intel-media-va-driver-non-free \
+  epiphany-browser \
+  cec-utils \
+  ir-keytable \
+  ydotool \
+  ydotoold \
+  playerctl \
+  pipewire \
+  pipewire-audio-client-libraries \
+  wireplumber \
+  alsa-utils \
+  fonts-noto \
+  fonts-noto-color-emoji \
+  xdg-utils \
+  zram-tools \
+  ethtool \
+  openssh-server \
+  samba \
+  snapd \
+ 2>/dev/null || {
+   echo "WARNING: appliance package install failed (likely no internet). The base system is installed; run 'bash /home/htpc/tvtv/scripts/setup.sh' later." | tee /var/log/tvtv-apt-failed.log
+}
+
 # ── 2. Clean Up Breaking/Deprecated Configs ───────────────────────────────────
 for bad in /etc/X11/xorg.conf.d/20-intel.conf /etc/pipewire/pipewire.conf.d/90-hdmi-pin.conf; do
   [ -f "$bad" ] && rm -f "$bad"
@@ -74,6 +126,13 @@ HandleLidSwitch=ignore
 HandleLidSwitchExternalPower=ignore
 HandleLidSwitchDocked=ignore
 IdleAction=ignore
+EOF
+
+# ZRAM compressed swap
+mkdir -p /etc/default
+cat > /etc/default/zramswap <<'EOF'
+PERCENTAGE=50
+PRIORITY=100
 EOF
 
 # ── 3. Uinput & HDMI-CEC Setup ───────────────────────────────────────────────

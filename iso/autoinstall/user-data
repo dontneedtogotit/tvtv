@@ -16,8 +16,6 @@ autoinstall:
           dhcp4: true
           dhcp6: false
       optional: true
-      wifi:
-        optional: true
   storage:
     layout:
       name: direct
@@ -32,71 +30,23 @@ autoinstall:
     allow-pw: true
     install-server: true
   packages:
-  - linux-firmware
-  - linux-generic-hwe-24.04
-  - intel-microcode
-  - iucode-tool
-  - thermald
-  - lm-sensors
+  - openssh-server
   - curl
   - wget
   - git
   - python3
   - python3-venv
   - python3-pip
-  - mpv
-  - yt-dlp
-  # yt-dlp is more reliable with a JS runtime (used by the ytdl_hook for
-  # some extractors); mpv itself works without one but extraction quality
-  # improves with it present.
-  - nodejs
-  - labwc
-  - cage
-  - swaybg
-  - polkitd
-  - seatd
-  - dbus-x11
-  - xwayland
-  - mesa-va-drivers
-  - intel-media-va-driver-non-free
-  - chromium-browser
-  - chromium
-  - epiphany-browser
-  - cec-utils
-  - ir-keytable
-  - ydotool
-  - ydotoold
-  - playerctl
-  - pipewire
-  - pipewire-audio-client-libraries
-  - wireplumber
-  - alsa-utils
-  - fonts-noto
-  - fonts-noto-color-emoji
-  - xdg-utils
-  - zram-tools
   - chrony
   - ethtool
-  - openssh-server
-  - samba
+  - linux-firmware
+  - linux-generic-hwe-24.04
   late-commands:
   - curtin in-target --target=/target -- sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/' /etc/default/grub
   - curtin in-target --target=/target -- update-grub
-  - 'curtin in-target --target=/target -- sh -c ''mkdir -p /etc/sudoers.d && printf "%sudo ALL=(ALL) NOPASSWD: ALL\nhtpc ALL=(ALL) NOPASSWD: ALL\n" > /etc/sudoers.d/90-tvtv && chmod 0440 /etc/sudoers.d/90-tvtv'''
-  - curtin in-target --target=/target -- sh -c 'mkdir -p /etc/xdg && printf "[Daemon]\nAutolock=false\nLockGrace=0\nLockOnResume=false\nTimeout=0\n" > /etc/xdg/kscreenlockerrc'
-  - curtin in-target --target=/target -- sh -c 'mkdir -p /etc/xdg && printf "[Wallet]\nEnabled=false\nFirst Use=false\n" > /etc/xdg/kwalletrc'
-  - curtin in-target --target=/target -- chage -M 99999 -m 0 htpc
-  - curtin in-target --target=/target -- mkdir -p /etc/systemd/logind.conf.d
-  - curtin in-target --target=/target -- sh -c 'printf "[Login]\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\nIdleAction=ignore\n" > /etc/systemd/logind.conf.d/10-tvtv.conf'
-  - curtin in-target --target=/target -- sh -c 'mkdir -p /etc/modules-load.d && echo uinput > /etc/modules-load.d/uinput.conf'
-  - curtin in-target --target=/target -- sh -c 'printf "KERNEL==\"uinput\", SUBSYSTEM==\"misc\", MODE=\"0660\", GROUP=\"uinput\", OPTIONS+=\"static_node=uinput\"\n" > /etc/udev/rules.d/80-uinput.rules'
-  - curtin in-target --target=/target -- sh -c 'printf "KERNEL==\"cec[0-9]*\", SUBSYSTEM==\"cec\", MODE=\"0666\", GROUP=\"dialout\"\nKERNEL==\"ttyACM[0-9]*\", SUBSYSTEM==\"tty\", MODE=\"0666\", GROUP=\"dialout\"\nKERNEL==\"ttyUSB[0-9]*\", SUBSYSTEM==\"tty\", MODE=\"0666\", GROUP=\"dialout\", ATTRS{idVendor}==\"1a44\"\n" > /etc/udev/rules.d/99-cec-adapter.rules'
-  - curtin in-target --target=/target -- sh -c 'printf "PERCENTAGE=50\nPRIORITY=100\n" > /etc/default/zramswap'
   - sh -c 'mkdir -p /target/home/htpc/tvtv && (cp -a /cdrom/tvtv/. /target/home/htpc/tvtv/ 2>/dev/null || cp -a /home/htpc/tvtv/. /target/home/htpc/tvtv/ 2>/dev/null || true)'
   - curtin in-target --target=/target -- bash -c 'if [ ! -f /home/htpc/tvtv/scripts/setup.sh ]; then git clone --depth 1 https://github.com/dontneedtogotit/tvtv.git /home/htpc/tvtv 2>/dev/null || true; fi'
   - curtin in-target --target=/target -- chown -R htpc:htpc /home/htpc/tvtv
-  - curtin in-target --target=/target -- bash -c 'mkdir -p /home/htpc/.config/tvtv && echo IyB0dnR2IEhUUEMgT3BlcmF0aW5nIFN5c3RlbSBDb25maWd1cmF0aW9uCiMgR2VuZXJhdGVkIGJ5IHR2dHYgSW5zdGFsbGVyCgpleHBvcnQgVFZfSE9TVE5BTUU9InR2dHYtbGl2aW5ncm9vbSIKZXhwb3J0IFRWX1VTRVI9Imh0cGMiCmV4cG9ydCBXTFJfT1VUUFVUPSJIRE1JLUEtMSIKZXhwb3J0IFdMUl9NT0RFPSIxOTIweDEwODBANjAiCmV4cG9ydCBUVl9TQ0FMRT0iMTMiCmV4cG9ydCBUVl9GT05UX1NJWkU9IjEzIgpleHBvcnQgVFZfU0hFTEw9ImxhYndjIgpleHBvcnQgVFZfVEhFTUU9ImVzdHVhcnkiCmV4cG9ydCBUVl9BVURJTz0iaGRtaSIKZXhwb3J0IFRWX0FVRElPX0VOR0lORT0icGlwZXdpcmUiCmV4cG9ydCBUVl9OSUdIVF9NT0RFPSIxIgpleHBvcnQgVFZfQVVESU9fUEFTU1RIUk9VR0g9IjAiCmV4cG9ydCBUVl9DRUM9InllcyIKZXhwb3J0IFRWX0NFQ19XQUtFPSIxIgpleHBvcnQgVFZfQ0VDX0tFWVM9IjEiCmV4cG9ydCBUVl9XRUJfUkVNT1RFPSIxIgpleHBvcnQgVFZfV0VCX1JFTU9URV9QT1JUPSI4MDgwIgpleHBvcnQgVFZfQ0FNRVJBX0hVQj0iMSIKZXhwb3J0IFRWX1NFTEZfVVBEQVRFUj0iMSIKZXhwb3J0IFRWX1NUT1JBR0VfTEFZT1VUPSJkaXJlY3QiCmV4cG9ydCBUVl9aUkFNPSIxIgpleHBvcnQgVFZfQUlfQVNTSVNUQU5UPSIxIgpleHBvcnQgVFZfUFJFU0VUPSJjdXN0b20iCgojIE1QViBkZWZhdWx0cyBmb3IgdGhpcyBUVgpleHBvcnQgTVBWX1NDQUxFPSItLXZpZGVvLXNjYWxlPWJpbGluZWFyIgpleHBvcnQgTVBWX1ZPPSItLXZvPWdwdSIKZXhwb3J0IE1QVl9IV0RFQz0iLS1od2RlYz1hdXRvLXNhZmUiCmV4cG9ydCBLSU9TS19VUkw9Imh0dHA6Ly9sb2NhbGhvc3Q6ODAwMCIK
-    | base64 -d > /home/htpc/.config/tvtv/tv.conf && chown -R htpc:htpc /home/htpc/.config/tvtv'
   - curtin in-target --target=/target -- bash -c 'if [ -f /home/htpc/tvtv/scripts/setup.sh ]; then bash /home/htpc/tvtv/scripts/setup.sh 2>&1 | tee /var/log/tvtv-setup.log; fi'
   - curtin in-target --target=/target -- bash -c '[ -f /etc/systemd/system/getty@tty1.service.d/autologin.conf ] && [ -x /usr/local/bin/tvtv-session ] || { echo "TVTV SETUP INCOMPLETE - autologin drop-in or tvtv-session missing (see /var/log/tvtv-setup.log)" | tee /var/log/tvtv-setup-failed.log; exit 1; }'
   shutdown: reboot
