@@ -45,54 +45,98 @@ chmod 0440 /etc/sudoers.d/90-tvtv
 # ── 1b. Install Desktop/Media Packages (needs network) ────────────────────────
 # The autoinstall only seeds a minimal base system from the ISO pool. Pull the
 # full appliance stack once the target has a live network connection.
+#
+# On failure, the bounded Kilo self-heal loop kicks in: it captures the apt
+# error log, asks the Kilo Code Gateway for a remediation command (restricted
+# to a strict allowlist), applies it, and retries. At most 2 Kilo-assisted
+# retries + 1 bare retry.
+APTVIEW_LOG="/var/log/tvtv-apt.log"
+SELF_HEAL_SCRIPT=""
+for _sh in /home/htpc/tvtv/scripts/kilo_self_heal.py \
+           /usr/local/bin/kilo_self_heal.py \
+           "$(dirname "$0")/kilo_self_heal.py"; do
+  if [ -f "$_sh" ]; then
+    SELF_HEAL_SCRIPT="$_sh"
+    break
+  fi
+done
+
+# The exact apt command (used by both the initial attempt and the self-heal retry)
+APT_INSTALL_CMD="apt-get install -y --no-install-recommends \\
+  linux-firmware \\
+  linux-generic-hwe-24.04 \\
+  intel-microcode \\
+  iucode-tool \\
+  thermald \\
+  lm-sensors \\
+  curl \\
+  wget \\
+  git \\
+  python3 \\
+  python3-venv \\
+  python3-pip \\
+  mpv \\
+  yt-dlp \\
+  nodejs \\
+  labwc \\
+  cage \\
+  swaybg \\
+  polkitd \\
+  seatd \\
+  dbus-x11 \\
+  xwayland \\
+  mesa-va-drivers \\
+  intel-media-va-driver-non-free \\
+  epiphany-browser \\
+  cec-utils \\
+  ir-keytable \\
+  ydotool \\
+  ydotoold \\
+  playerctl \\
+  pipewire \\
+  pipewire-audio-client-libraries \\
+  wireplumber \\
+  alsa-utils \\
+  fonts-noto \\
+  fonts-noto-color-emoji \\
+  xdg-utils \\
+  zram-tools \\
+  ethtool \\
+  openssh-server \\
+  samba \\
+  snapd"
+
 echo "Installing appliance packages (this needs internet) ..."
-apt-get update -q 2>/dev/null || true
-apt-get install -y --no-install-recommends \
-  linux-firmware \
-  linux-generic-hwe-24.04 \
-  intel-microcode \
-  iucode-tool \
-  thermald \
-  lm-sensors \
-  curl \
-  wget \
-  git \
-  python3 \
-  python3-venv \
-  python3-pip \
-  mpv \
-  yt-dlp \
-  nodejs \
-  labwc \
-  cage \
-  swaybg \
-  polkitd \
-  seatd \
-  dbus-x11 \
-  xwayland \
-  mesa-va-drivers \
-  intel-media-va-driver-non-free \
-  epiphany-browser \
-  cec-utils \
-  ir-keytable \
-  ydotool \
-  ydotoold \
-  playerctl \
-  pipewire \
-  pipewire-audio-client-libraries \
-  wireplumber \
-  alsa-utils \
-  fonts-noto \
-  fonts-noto-color-emoji \
-  xdg-utils \
-  zram-tools \
-  ethtool \
-  openssh-server \
-  samba \
-  snapd \
- 2>/dev/null || {
-   echo "WARNING: appliance package install failed (likely no internet). The base system is installed; run 'bash /home/htpc/tvtv/scripts/setup.sh' later." | tee /var/log/tvtv-apt-failed.log
-}
+apt-get update -q >"$APTVIEW_LOG" 2>&1 || true
+
+# Run apt install, capturing output to the log
+eval "$APT_INSTALL_CMD" >>"$APTVIEW_LOG" 2>&1
+APT_RC=$?
+
+if [ $APT_RC -ne 0 ]; then
+  echo "  apt install failed (rc=$APT_RC) — attempting Kilo self-heal ..." | tee -a "$APTVIEW_LOG"
+
+  if [ -n "$SELF_HEAL_SCRIPT" ]; then
+    python3 "$SELF_HEAL_SCRIPT" \
+      --stage apt-install \
+      --log "$APTVIEW_LOG" \
+      --cmd "$APT_INSTALL_CMD" \
+      --max-retries 2 \
+      >>"$APTVIEW_LOG" 2>&1
+    HEAL_RC=$?
+  else
+    echo "  kilo_self_heal.py not found; skipping self-heal." | tee -a "$APTVIEW_LOG"
+    HEAL_RC=2
+  fi
+
+  if [ $HEAL_RC -eq 0 ]; then
+    echo "  Self-heal SUCCEEDED — appliance packages installed." | tee -a "$APTVIEW_LOG"
+  elif [ $HEAL_RC -eq 2 ]; then
+    echo "  WARNING: appliance package install failed (no Kilo key or Kilo unreachable). The base system is installed; run 'bash /home/htpc/tvtv/scripts/setup.sh' later." | tee -a "$APTVIEW_LOG"
+  else
+    echo "  WARNING: appliance package install failed after self-heal. The base system is installed; run 'bash /home/htpc/tvtv/scripts/setup.sh' later." | tee -a "$APTVIEW_LOG"
+  fi
+fi
 
 # ── 2. Clean Up Breaking/Deprecated Configs ───────────────────────────────────
 for bad in /etc/X11/xorg.conf.d/20-intel.conf /etc/pipewire/pipewire.conf.d/90-hdmi-pin.conf; do
