@@ -21,14 +21,7 @@ autoinstall:
     install-server: true
   packages:
   - openssh-server
-  - curl
   - wget
-  - git
-  - python3
-  - python3-venv
-  - python3-pip
-  - chrony
-  - ethtool
   - linux-firmware
   - linux-generic-hwe-24.04
   late-commands:
