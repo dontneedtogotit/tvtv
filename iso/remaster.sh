@@ -248,6 +248,32 @@ if [ "$AUTOINSTALL_MODE" = "self-contained" ]; then
   cp "$ISO_DIR/autoinstall/user-data" "$FULL_TREE/autoinstall/user-data"
   cp "$ISO_DIR/autoinstall/meta-data" "$FULL_TREE/autoinstall/meta-data"
 fi
+# --- regenerate md5sum.txt (casper-md5check) -----------------------------
+# casper-md5check reads ./md5sum.txt from the media. The remaster patches
+# grub.cfg/loopback.cfg and stages /tvtv + /autoinstall, so the base's
+# checksum list is stale: verification FAILS and subiquity stamps "install
+# media checksum verification failed" onto every crash screen. Rebuild
+# the list from the FINAL tree, matching the base's format:
+# "<md5>  ./relative/path". Two classes of file must NOT be listed:
+#   - md5sum.txt itself (self-referential)
+#   - boot/grub/i386-pc/eltorito.img + boot.catalog: xorriso rewrites
+#     these while assembling the image (boot-info-table patch / catalog
+#     generation), so their on-media bytes differ from the tree -- the
+#     base ISO leaves them unlisted for exactly this reason.
+echo "Regenerating md5sum.txt from the patched tree ..."
+rm -f "$FULL_TREE/md5sum.txt"
+( cd "$FULL_TREE" && find . -type f \
+    ! -path './md5sum.txt' \
+    ! -path './boot.catalog' \
+    ! -path './boot/grub/i386-pc/eltorito.img' \
+  -print0 | LC_ALL=C sort -z | xargs -0 md5sum ) > "$FULL_TREE/md5sum.txt"
+[ -s "$FULL_TREE/md5sum.txt" ] || { echo "ERROR: md5sum.txt regeneration produced empty file" >&2; exit 1; }
+# Sanity: every line must be "<32 hex>  ./path" (two spaces, ISO9660-safe).
+if grep -qvE '^[0-9a-f]{32}  \./' "$FULL_TREE/md5sum.txt"; then
+  echo "ERROR: md5sum.txt contains malformed lines" >&2; exit 1
+fi
+echo "md5sum.txt regenerated: $(wc -l < "$FULL_TREE/md5sum.txt") files checksummed."
+
 rm -f "$OUT_ISO"
 # -iso-level 3 for the 2.4G squashfs, -r for Rock Ridge, -J -joliet-long so
 # long /tvtv names survive the Joliet descriptor the base also carries.

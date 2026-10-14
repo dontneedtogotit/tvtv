@@ -6,8 +6,6 @@ autoinstall:
   keyboard:
     layout: us
     variant: ''
-  interactive-sections:
-  - network
   storage:
     layout:
       name: direct
@@ -35,5 +33,4 @@ autoinstall:
   - curtin in-target --target=/target -- bash -c 'if [ -f /home/htpc/tvtv/scripts/setup.sh ]; then bash /home/htpc/tvtv/scripts/setup.sh 2>&1 | tee /var/log/tvtv-setup.log; fi'
   - curtin in-target --target=/target -- bash -c '[ -f /etc/systemd/system/getty@tty1.service.d/autologin.conf ] && [ -x /usr/local/bin/tvtv-session ] || { echo "TVTV SETUP INCOMPLETE - autologin drop-in or tvtv-session missing (see /var/log/tvtv-setup.log)" | tee /var/log/tvtv-setup-failed.log; exit 1; }'
   shutdown: reboot
-instance-id: tvtv-htpc-noble
-local-hostname: tvtv-livingroom
+
